@@ -2,34 +2,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:door/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
-/* ───────────────── Host / Network ───────────────── */
-
-/// Toggle this when testing on a REAL device and set your machine's LAN IP.
-/// Example: const String kLanIp = '192.168.1.23';
-const bool kUseLanIpForRealDevice = false;
-const String kLanIp = '192.168.1.23';
-
-String _resolveHost() {
-  if (kUseLanIpForRealDevice) return kLanIp;
-  if (kIsWeb) return 'localhost';
-  switch (defaultTargetPlatform) {
-    case TargetPlatform.android:
-      return '10.0.2.2';
-    case TargetPlatform.iOS:
-      return '127.0.0.1';
-    case TargetPlatform.macOS:
-    case TargetPlatform.windows:
-    case TargetPlatform.linux:
-      return '127.0.0.1';
-    default:
-      return '127.0.0.1';
-  }
-}
 
 /* ───────────────── Forgot Password Page ───────────────── */
 
@@ -56,7 +31,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   void initState() {
     super.initState();
-    _endpointBase = 'http://${_resolveHost()}:3000';
+    _endpointBase = ApiClient().baseUrl;
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       if (_cooldownUntil == null) return;

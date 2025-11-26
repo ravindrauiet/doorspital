@@ -16,12 +16,14 @@ class ConnectionTest {
       final uri = Uri.parse(baseUrl.replaceAll('/api', ''));
       print('🧪 Testing: $uri');
 
-      final response = await http.get(uri).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw Exception('Connection timeout - server not reachable');
-        },
-      );
+      final response = await http
+          .get(uri)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw Exception('Connection timeout - server not reachable');
+            },
+          );
 
       return {
         'success': true,
@@ -33,11 +35,9 @@ class ConnectionTest {
       return {
         'success': false,
         'error': 'SocketException',
-        'message': 'Cannot connect to server. Make sure:\n'
-            '1. Backend is running on port 3000\n'
-            '2. For Android emulator, use 10.0.2.2\n'
-            '3. For iOS simulator, use 127.0.0.1\n'
-            '4. For real device, use your computer\'s LAN IP',
+        'message':
+            'Unable to reach ${_client.baseUrl}. '
+            'Please ensure the Render deployment is running and that your device has network connectivity.',
         'details': e.message,
         'baseUrl': _client.baseUrl,
       };
@@ -65,19 +65,21 @@ class ConnectionTest {
     try {
       final baseUrl = _client.baseUrl;
       final testUri = Uri.parse('$baseUrl/auth/sign-in');
-      
+
       print('🧪 Testing sign-in endpoint: $testUri');
 
-      final response = await http.post(
-        testUri,
-        headers: {'Content-Type': 'application/json'},
-        body: '{"email":"test@example.com","password":"test"}',
-      ).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw Exception('Request timeout');
-        },
-      );
+      final response = await http
+          .post(
+            testUri,
+            headers: {'Content-Type': 'application/json'},
+            body: '{"email":"test@example.com","password":"test"}',
+          )
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
 
       return {
         'success': response.statusCode < 500,
@@ -99,4 +101,3 @@ class ConnectionTest {
     }
   }
 }
-

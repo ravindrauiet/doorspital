@@ -1,15 +1,7 @@
 import 'dart:convert';
+import 'package:door/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
-/* ───────────── Host Resolver ───────────── */
-const bool kUseLanIpForRealDevice = false;
-const String kLanIp = '192.168.1.23';
-
-String _resolveHost() {
-  if (kUseLanIpForRealDevice) return kLanIp;
-  return '10.0.2.2'; // Android emulator default
-}
 
 /* ───────────── Reset Password Page ───────────── */
 class ResetPasswordPage extends StatefulWidget {
@@ -37,7 +29,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   void initState() {
     super.initState();
-    _endpointBase = 'http://${_resolveHost()}:3000';
+    _endpointBase = ApiClient().baseUrl;
   }
 
   @override

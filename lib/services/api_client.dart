@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,36 +11,10 @@ class ApiClient {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
 
-  // Base URL configuration
-  static const bool kUseLanIpForRealDevice = false;
-  static const String kLanIp = '192.168.1.23';
-
   String get baseUrl {
-    final host = _resolveHost();
-    final url = 'http://$host:3000/api';
+    const url = 'https://doorspital-backend.onrender.com/api';
     print('🔧 Base URL configured: $url');
     return url;
-  }
-
-  String _resolveHost() {
-    if (kUseLanIpForRealDevice) {
-      print('🔧 Using LAN IP: $kLanIp');
-      return kLanIp;
-    }
-    if (kIsWeb) {
-      print('🔧 Using localhost (Web)');
-      return 'localhost';
-    }
-    final host = switch (defaultTargetPlatform) {
-      TargetPlatform.android => '10.0.2.2',
-      TargetPlatform.iOS => '127.0.0.1',
-      TargetPlatform.macOS => '127.0.0.1',
-      TargetPlatform.windows => '127.0.0.1',
-      TargetPlatform.linux => '127.0.0.1',
-      _ => '127.0.0.1',
-    };
-    print('🔧 Platform: $defaultTargetPlatform, Using host: $host');
-    return host;
   }
 
   // Token management
@@ -77,9 +50,7 @@ class ApiClient {
 
   // Headers
   Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
+    final headers = <String, String>{'Content-Type': 'application/json'};
 
     if (includeAuth) {
       final token = await getToken();
@@ -97,8 +68,9 @@ class ApiClient {
     Map<String, String>? queryParams,
     bool includeAuth = true,
   }) async {
+    final currentBase = baseUrl;
     try {
-      var uri = Uri.parse('$baseUrl$endpoint');
+      var uri = Uri.parse('$currentBase$endpoint');
       if (queryParams != null && queryParams.isNotEmpty) {
         uri = uri.replace(queryParameters: queryParams);
       }
@@ -118,7 +90,10 @@ class ApiClient {
       return response;
     } on SocketException catch (e) {
       print('❌ Socket Exception: $e');
-      throw Exception('Connection failed. Please check:\n1. Backend server is running on port 3000\n2. You are using the correct host (10.0.2.2 for Android emulator, 127.0.0.1 for iOS)\n3. Your device/emulator can reach the server\n\nError: ${e.message}');
+      throw Exception(
+        'Unable to reach the server at $currentBase. '
+        'Please check your internet connection or confirm the backend is running.\n\nDetails: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       print('❌ Client Exception: $e');
       throw Exception('Network request failed: ${e.message}');
@@ -134,15 +109,16 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool includeAuth = true,
   }) async {
+    final currentBase = baseUrl;
     try {
-      final uri = Uri.parse('$baseUrl$endpoint');
-      
+      final uri = Uri.parse('$currentBase$endpoint');
+
       // Debug: Print the URL being called
       print('🌐 API Call: POST $uri');
       if (body != null) {
         print('📤 Request Body: ${json.encode(body)}');
       }
-      
+
       final response = await http.post(
         uri,
         headers: await _getHeaders(includeAuth: includeAuth),
@@ -156,7 +132,10 @@ class ApiClient {
       return response;
     } on SocketException catch (e) {
       print('❌ Socket Exception: $e');
-      throw Exception('Connection failed. Please check:\n1. Backend server is running on port 3000\n2. You are using the correct host (10.0.2.2 for Android emulator, 127.0.0.1 for iOS)\n3. Your device/emulator can reach the server\n\nError: ${e.message}');
+      throw Exception(
+        'Unable to reach the server at $currentBase. '
+        'Please check your internet connection or confirm the backend is running.\n\nDetails: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       print('❌ Client Exception: $e');
       throw Exception('Network request failed: ${e.message}');
@@ -212,12 +191,12 @@ class ApiClient {
   }) async {
     try {
       final uri = Uri.parse('$baseUrl$endpoint');
-      
+
       print('🌐 API Call: PATCH $uri');
       if (body != null) {
         print('📤 Request Body: ${json.encode(body)}');
       }
-      
+
       final response = await http.patch(
         uri,
         headers: await _getHeaders(includeAuth: includeAuth),
@@ -287,4 +266,3 @@ class ApiClient {
     throw Exception(message);
   }
 }
-
