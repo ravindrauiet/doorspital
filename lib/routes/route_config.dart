@@ -27,118 +27,120 @@ import 'package:go_router/go_router.dart';
 final RouteObserver<ModalRoute<void>> routeObserver =
     RouteObserver<ModalRoute<void>>();
 
-final GoRouter appRouter = GoRouter(
-  initialLocation: RouteConstants.onboardingScreen,
-  observers: [routeObserver],
-  routes: [
-    GoRoute(
-      path: RouteConstants.homeScreen,
-      name: RouteConstants.homeScreen,
-      builder: (context, state) => const HomeScreen(),
+GoRouter createRouter(String initialLocation) {
+  return GoRouter(
+    initialLocation: initialLocation,
+    observers: [routeObserver],
+    routes: [
+      GoRoute(
+        path: RouteConstants.homeScreen,
+        name: RouteConstants.homeScreen,
+        builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.topDoctorsScreen,
+        name: RouteConstants.topDoctorsScreen,
+        builder: (context, state) => const TopDoctorsScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.welcomeScreen,
+        name: RouteConstants.welcomeScreen,
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.onboardingScreen,
+        name: RouteConstants.onboardingScreen,
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.signInScreen,
+        name: RouteConstants.signInScreen,
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.signUpScreen,
+        name: RouteConstants.signUpScreen,
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.forgotPasswordScreen,
+        name: RouteConstants.forgotPasswordScreen,
+        builder: (context, state) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: RouteConstants.bottomNavBarScreen,
+        name: RouteConstants.bottomNavBarScreen,
+        builder: (context, state) => const BottomNavBar(),
+      ),
+      GoRoute(
+        path: RouteConstants.doctorDetailsScreen,
+        name: RouteConstants.doctorDetailsScreen,
+        builder: (context, state) {
+          final doctorId = state.extra as String?;
+          return DoctorDetailsScreen(doctorId: doctorId);
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.patientDetailsScreen,
+        name: RouteConstants.patientDetailsScreen,
+        builder: (context, state) => const PatientDetailsScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.selectPackageScreen,
+        name: RouteConstants.selectPackageScreen,
+        builder: (context, state) => const SelectPackageScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.placeAppointmentScreen,
+        name: RouteConstants.placeAppointmentScreen,
+        builder: (context, state) => const PlaceAppointmentScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.paymentSuccessScreen,
+        name: RouteConstants.paymentSuccessScreen,
+        builder: (context, state) => const PaymentSuccessScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.notificationsScreen,
+        name: RouteConstants.notificationsScreen,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.editProfileScreen,
+        name: RouteConstants.editProfileScreen,
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.pharmacyHomeScreen,
+        name: RouteConstants.pharmacyHomeScreen,
+        builder: (context, state) => const PharmacyHomeScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.pharmacyProductsDetailsScreen,
+        name: RouteConstants.pharmacyProductsDetailsScreen,
+        builder: (context, state) => const PharmacyProductsDetailsScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.cartScreen,
+        name: RouteConstants.cartScreen,
+        builder: (context, state) => const CartScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.chatScreen,
+        name: RouteConstants.chatScreen,
+        builder: (context, state) => const ChatScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.chatImagePreviewScreen,
+        name: RouteConstants.chatImagePreviewScreen,
+        builder: (context, state) {
+          final file = state.extra as File;
+          return ChatImagePreviewScreen(image: file);
+        },
+      ),
+    ],
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(child: Text('404: Page not found (${state.uri.path})')),
     ),
-    GoRoute(
-      path: RouteConstants.topDoctorsScreen,
-      name: RouteConstants.topDoctorsScreen,
-      builder: (context, state) => const TopDoctorsScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.welcomeScreen,
-      name: RouteConstants.welcomeScreen,
-      builder: (context, state) => const WelcomeScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.onboardingScreen,
-      name: RouteConstants.onboardingScreen,
-      builder: (context, state) => const OnboardingScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.signInScreen,
-      name: RouteConstants.signInScreen,
-      builder: (context, state) => const SignInScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.signUpScreen,
-      name: RouteConstants.signUpScreen,
-      builder: (context, state) => const SignUpScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.forgotPasswordScreen,
-      name: RouteConstants.forgotPasswordScreen,
-      builder: (context, state) => const ForgotPasswordPage(),
-    ),
-    GoRoute(
-      path: RouteConstants.bottomNavBarScreen,
-      name: RouteConstants.bottomNavBarScreen,
-      builder: (context, state) => const BottomNavBar(),
-    ),
-    GoRoute(
-      path: RouteConstants.doctorDetailsScreen,
-      name: RouteConstants.doctorDetailsScreen,
-      builder: (context, state) {
-        final doctorId = state.extra as String?;
-        return DoctorDetailsScreen(doctorId: doctorId);
-      },
-    ),
-    GoRoute(
-      path: RouteConstants.patientDetailsScreen,
-      name: RouteConstants.patientDetailsScreen,
-      builder: (context, state) => const PatientDetailsScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.selectPackageScreen,
-      name: RouteConstants.selectPackageScreen,
-      builder: (context, state) => const SelectPackageScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.placeAppointmentScreen,
-      name: RouteConstants.placeAppointmentScreen,
-      builder: (context, state) => const PlaceAppointmentScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.paymentSuccessScreen,
-      name: RouteConstants.paymentSuccessScreen,
-      builder: (context, state) => const PaymentSuccessScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.notificationsScreen,
-      name: RouteConstants.notificationsScreen,
-      builder: (context, state) => const NotificationsScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.editProfileScreen,
-      name: RouteConstants.editProfileScreen,
-      builder: (context, state) => const EditProfileScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.pharmacyHomeScreen,
-      name: RouteConstants.pharmacyHomeScreen,
-      builder: (context, state) => const PharmacyHomeScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.pharmacyProductsDetailsScreen,
-      name: RouteConstants.pharmacyProductsDetailsScreen,
-      builder: (context, state) => const PharmacyProductsDetailsScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.cartScreen,
-      name: RouteConstants.cartScreen,
-      builder: (context, state) => const CartScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.chatScreen,
-      name: RouteConstants.chatScreen,
-      builder: (context, state) => const ChatScreen(),
-    ),
-    GoRoute(
-      path: RouteConstants.chatImagePreviewScreen,
-      name: RouteConstants.chatImagePreviewScreen,
-      builder: (context, state) {
-        final file = state.extra as File;
-        return ChatImagePreviewScreen(image: file);
-      },
-    ),
-  ],
-  errorBuilder: (context, state) => Scaffold(
-    body: Center(child: Text('404: Page not found (${state.uri.path})')),
-  ),
-);
+  );
+}
