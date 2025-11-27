@@ -1,12 +1,23 @@
+import 'package:door/features/chat/provider/chat_media_picker_provider.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
-import 'package:door/features/chat/provider/chat_media_picker_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class ChatInputBar extends StatefulWidget {
-  const ChatInputBar({super.key});
+  final TextEditingController controller;
+  final ValueChanged<String> onSend;
+  final bool isSending;
+  final bool enabled;
+
+  const ChatInputBar({
+    super.key,
+    required this.controller,
+    required this.onSend,
+    this.isSending = false,
+    this.enabled = true,
+  });
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -22,6 +33,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
     super.dispose();
   }
 
+  void _handleSend() {
+    final text = widget.controller.text.trim();
+    if (text.isEmpty || widget.isSending || !widget.enabled) return;
+    widget.onSend(text);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -33,8 +50,14 @@ class _ChatInputBarState extends State<ChatInputBar> {
           children: [
             InkWell(
               key: _menuKey,
-              onTap: _togglePopup,
-              child: const Icon(Icons.add, size: 30, color: AppColors.primary),
+              onTap: widget.enabled ? _togglePopup : null,
+              child: Icon(
+                Icons.add,
+                size: 30,
+                color: widget.enabled
+                    ? AppColors.primary
+                    : AppColors.primary.withOpacity(0.4),
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -52,22 +75,37 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   children: [
                     Expanded(
                       child: TextField(
+                        controller: widget.controller,
+                        enabled: widget.enabled,
+                        minLines: 1,
+                        maxLines: 4,
                         decoration: InputDecoration(
                           isDense: true,
                           border: InputBorder.none,
-                          hintText: 'Write a message...',
+                          hintText: widget.enabled
+                              ? 'Write a message...'
+                              : 'Connecting...',
                           hintStyle: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade500,
                           ),
                         ),
+                        onSubmitted: (_) => _handleSend(),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Icon(
-                      Icons.mic_none_rounded,
-                      size: 22,
-                      color: AppColors.primary,
+                    IconButton(
+                      icon: widget.isSending
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.send_rounded,
+                              color: AppColors.primary,
+                            ),
+                      onPressed: widget.isSending ? null : _handleSend,
                     ),
                   ],
                 ),

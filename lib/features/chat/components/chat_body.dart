@@ -1,57 +1,70 @@
 import 'package:door/features/chat/components/chat_bubble_doctor.dart';
 import 'package:door/features/chat/components/chat_user_bubble.dart';
+import 'package:door/services/models/chat_models.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class ChatBody extends StatelessWidget {
-  const ChatBody({super.key});
+  final List<ChatMessage> messages;
+  final String? currentUserId;
+  final ScrollController scrollController;
+  final bool isLoading;
+  final Future<void> Function()? onLoadMore;
+
+  const ChatBody({
+    super.key,
+    required this.messages,
+    required this.currentUserId,
+    required this.scrollController,
+    required this.isLoading,
+    this.onLoadMore,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      children: const [
-        // user msg
-        Align(
-          alignment: Alignment.centerRight,
-          child: ChatBubbleUser(
-            text:
-                'hello, doctor, i believe i have the coronavirus as i am experiencing mild symptoms, what do i do?',
-            time: '10:13',
-          ),
+    if (isLoading && messages.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (messages.isEmpty) {
+      return const Center(
+        child: Text(
+          'Say hello to start the conversation.',
+          style: TextStyle(color: Colors.black54),
         ),
-        SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ChatBubbleDoctor(
-            text:
-                "I'm here for you, don’t worry.\nWhat symptoms are you experiencing?",
-            time: '10:14',
-          ),
-        ),
-        SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: ChatBubbleUser(
-            text: 'fever\ndry cough\ntiredness\nsore throat',
-            time: '10:14',
-          ),
-        ),
-        SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ChatBubbleDoctor(
-            text:
-                'oh so sorry about that. do you have any underlying diseases?',
-            time: '10:15',
-          ),
-        ),
-        SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: ChatBubbleUser(text: 'oh no', time: '10:16'),
-        ),
-        SizedBox(height: 4),
-      ],
+      );
+    }
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.pixels <= 64 &&
+            notification is ScrollUpdateNotification) {
+          onLoadMore?.call();
+        }
+        return false;
+      },
+      child: ListView.builder(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        itemCount: messages.length,
+        itemBuilder: (context, index) {
+          final message = messages[index];
+          final isMine = message.sender?.id == currentUserId;
+          final timeLabel = message.createdAt != null
+              ? DateFormat('hh:mm a').format(message.createdAt!.toLocal())
+              : '';
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Align(
+              alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+              child: isMine
+                  ? ChatBubbleUser(text: message.body, time: timeLabel)
+                  : ChatBubbleDoctor(text: message.body, time: timeLabel),
+            ),
+          );
+        },
+      ),
     );
   }
 }

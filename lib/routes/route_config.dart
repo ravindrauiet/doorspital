@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:door/features/cart/view/cart_screen.dart';
 import 'package:door/features/chat/view/chat_image_preview_screen.dart';
+import 'package:door/features/chat/view/chat_list_screen.dart';
 import 'package:door/features/chat/view/chat_screen.dart';
 import 'package:door/features/home/view/bottom_nav_bar.dart';
 import 'package:door/features/home/view/home_screen.dart';
@@ -126,9 +127,17 @@ GoRouter createRouter(String initialLocation) {
         builder: (context, state) => const CartScreen(),
       ),
       GoRoute(
+        path: RouteConstants.chatListScreen,
+        name: RouteConstants.chatListScreen,
+        builder: (context, state) => const ChatListScreen(),
+      ),
+      GoRoute(
         path: RouteConstants.chatScreen,
         name: RouteConstants.chatScreen,
-        builder: (context, state) => const ChatScreen(),
+        builder: (context, state) {
+          final args = state.extra as ChatScreenArgs?;
+          return ChatScreen(args: args);
+        },
       ),
       GoRoute(
         path: RouteConstants.chatImagePreviewScreen,

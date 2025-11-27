@@ -18,6 +18,7 @@ class RouteConstants {
   static const pharmacyProductsDetailsScreen =
       "/pharmacy-products-details-screen";
   static const cartScreen = "/cart-screen";
+  static const chatListScreen = "/chat-list-screen";
   static const chatScreen = "/chat-screen";
   static const chatImagePreviewScreen = "/chat-image-preview-screen";
 }

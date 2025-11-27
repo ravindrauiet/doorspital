@@ -1,3 +1,4 @@
+import 'package:door/features/chat/view/chat_screen.dart';
 import 'package:door/features/components/custom_appbar.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/services/appointment_service.dart';
@@ -68,7 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final response = await _appointmentService.getMyAppointments(
       status: 'confirmed',
-      limit: 5,
+      limit: 20,
     );
     if (!mounted) return;
 
@@ -98,40 +99,267 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final email = _profile?['email'] as String? ?? '';
     final phone = _profile?['phoneNumber'] as String?;
 
-    return Scaffold(
-      appBar: CustomAppBar(
-        arrowBack: false,
-        title: 'Profile',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadData,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildProfileHeader(name, email, phone),
-                  const SizedBox(height: 16),
-                  _buildQuickStats(),
-                  const SizedBox(height: 24),
-                  _buildAppointmentsSection(),
-                  const SizedBox(height: 24),
-                  _buildActionTiles(),
-                ],
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: CustomAppBar(
+          arrowBack: false,
+          title: 'Profile',
+          actions: [
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(50),
+                    border: Border.all(color: const Color(0xFFE7E7E7)),
+                  ),
+                  child: const TabBar(
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.black54,
+                    indicator: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.all(Radius.circular(50)),
+                    ),
+                    tabs: [
+                      Tab(text: 'Overview'),
+                      Tab(text: 'Appointments'),
+                    ],
+                  ),
+                ),
               ),
-            ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _buildOverviewTab(name, email, phone),
+                    _buildAllAppointmentsTab(),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildOverviewTab(String name, String email, String? phone) {
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfileHeader(name, email, phone),
+              const SizedBox(height: 16),
+              _buildQuickStats(),
+              const SizedBox(height: 24),
+              _buildAppointmentsSection(),
+              const SizedBox(height: 24),
+              _buildActionTiles(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAllAppointmentsTab() {
+    if (_loadingAppointments && _appointments.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_appointmentsError != null && _appointments.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _appointmentsError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadAppointments,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadAppointments,
+      child: _appointments.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(height: 120),
+                Icon(
+                  Icons.event_busy_outlined,
+                  size: 64,
+                  color: Colors.black26,
+                ),
+                SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    'No appointments found.',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+              ],
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              itemCount: _appointments.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) =>
+                  _buildAppointmentChatCard(_appointments[index]),
+            ),
+    );
+  }
+
+  Widget _buildAppointmentChatCard(Appointment appointment) {
+    final start = appointment.startTime;
+    final end = appointment.endTime;
+    final isPast = start.isBefore(DateTime.now());
+    final status = appointment.status.toLowerCase();
+    final canChat = status == 'confirmed' || status == 'completed';
+    final doctorName =
+        appointment.doctor?.specialization ?? 'Doctor Consultation';
+    final location = appointment.doctor?.city ?? '––';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEDEDED)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.softPurple,
+                child: Text(
+                  doctorName.isNotEmpty ? doctorName[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      doctorName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      location,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: canChat
+                      ? AppColors.primary.withOpacity(0.15)
+                      : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  appointment.status,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: canChat ? AppColors.primary : Colors.black45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 16,
+                color: Colors.black54,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: canChat
+                  ? () => _openChatForAppointment(appointment)
+                  : null,
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+              label: Text(
+                canChat
+                    ? 'Open chat for this appointment'
+                    : (isPast
+                          ? 'Chat unavailable (appointment closed)'
+                          : 'Chat activates once confirmed'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openChatForAppointment(Appointment appointment) {
+    context.pushNamed(
+      RouteConstants.chatScreen,
+      extra: ChatScreenArgs(appointmentId: appointment.id),
     );
   }
 
@@ -171,19 +399,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    fontSize: 13,
-                  ),
+                  style: const TextStyle(color: Colors.black54, fontSize: 13),
                 ),
                 if (phone != null && phone.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     phone,
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
                   ),
                 ],
               ],
@@ -202,11 +424,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildQuickStats() {
     final now = DateTime.now();
-    final upcoming = _appointments.where((a) => a.startTime.isAfter(now)).length;
+    final upcoming = _appointments
+        .where((a) => a.startTime.isAfter(now))
+        .length;
     final missed = _appointments
-        .where((a) =>
-            a.startTime.isBefore(now) &&
-            !['completed', 'cancelled'].contains(a.status.toLowerCase()))
+        .where(
+          (a) =>
+              a.startTime.isBefore(now) &&
+              !['completed', 'cancelled'].contains(a.status.toLowerCase()),
+        )
         .length;
 
     return Row(
@@ -327,23 +553,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: Icons.shopping_bag_outlined,
           title: 'My Orders',
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MyOrdersPage()),
-            );
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const MyOrdersPage()));
           },
         ),
         _ProfileTile(
-                      iconBg: AppColors.softPurple,
-                      icon: Icons.favorite_rounded,
-                      title: 'My Saved',
-                      onTap: () {},
-                    ),
+          iconBg: AppColors.softPurple,
+          icon: Icons.favorite_rounded,
+          title: 'My Saved',
+          onTap: () {},
+        ),
         _ProfileTile(
           iconBg: AppColors.softPurple,
           icon: Icons.chat_bubble_outline_rounded,
           title: 'Contact Support',
           onTap: () {
-            context.pushNamed(RouteConstants.chatScreen);
+            context.pushNamed(RouteConstants.chatListScreen);
           },
         ),
         _ProfileTile(
@@ -459,10 +685,7 @@ class _ProfileStatCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.black54,
-                ),
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const SizedBox(height: 4),
               Text(
@@ -484,10 +707,7 @@ class _SectionCard extends StatelessWidget {
   final String title;
   final Widget child;
 
-  const _SectionCard({
-    required this.title,
-    required this.child,
-  });
+  const _SectionCard({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -511,10 +731,7 @@ class _SectionCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           child,
@@ -541,8 +758,9 @@ class _AppointmentTile extends StatelessWidget {
     final isMissed =
         isPast && !['completed', 'cancelled'].contains(statusLower);
     final displayStatus = isMissed ? 'Missed' : appointment.status;
-    final statusColor =
-        isMissed ? Colors.redAccent : _statusColor(appointment.status);
+    final statusColor = isMissed
+        ? Colors.redAccent
+        : _statusColor(appointment.status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -577,18 +795,12 @@ class _AppointmentTile extends StatelessWidget {
                 if (city.isNotEmpty)
                   Text(
                     city,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 const SizedBox(height: 4),
                 Text(
                   '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
                 if (isMissed)
                   const Padding(
@@ -624,30 +836,30 @@ class _AppointmentTile extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
+String _formatDate(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+}
 
-  static String _formatTime(DateTime date) {
-    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-    final minute = date.minute.toString().padLeft(2, '0');
-    final period = date.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $period';
-  }
+String _formatTime(DateTime date) {
+  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final minute = date.minute.toString().padLeft(2, '0');
+  final period = date.hour >= 12 ? 'PM' : 'AM';
+  return '$hour:$minute $period';
+}
 
-  static Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-        return AppColors.teal;
-      case 'pending':
-        return Colors.orange;
-      case 'cancelled':
-        return Colors.red;
-      case 'completed':
-        return Colors.green;
-      default:
-        return Colors.blueGrey;
-    }
+Color _statusColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'confirmed':
+      return AppColors.teal;
+    case 'pending':
+      return Colors.orange;
+    case 'cancelled':
+      return Colors.red;
+    case 'completed':
+      return Colors.green;
+    default:
+      return Colors.blueGrey;
   }
 }
