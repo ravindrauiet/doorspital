@@ -6,16 +6,13 @@ class AppointmentService {
   final ApiClient _client = ApiClient();
 
   // GET /api/appointments/doctors/available
-  Future<ApiResponse<SearchAvailableDoctorsResponse>>
-      searchAvailableDoctors({
+  Future<ApiResponse<SearchAvailableDoctorsResponse>> searchAvailableDoctors({
     required String date, // YYYY-MM-DD format
     String? specialization,
     String? city,
   }) async {
     try {
-      final queryParams = <String, String>{
-        'date': date,
-      };
+      final queryParams = <String, String>{'date': date};
       if (specialization != null) {
         queryParams['specialization'] = specialization;
       }
@@ -52,7 +49,8 @@ class AppointmentService {
 
   // POST /api/appointments/book
   Future<ApiResponse<Map<String, dynamic>>> bookAppointment(
-      BookAppointmentRequest request) async {
+    BookAppointmentRequest request,
+  ) async {
     try {
       final response = await _client.post(
         '/appointments/book',
@@ -103,9 +101,11 @@ class AppointmentService {
       final data = _client.parseResponse(response);
 
       if (response.statusCode == 200 && data['success'] == true) {
-        final appointments = (data['data'] as List<dynamic>?)
-                ?.map((apt) =>
-                    Appointment.fromJson(apt as Map<String, dynamic>))
+        final appointments =
+            (data['data'] as List<dynamic>?)
+                ?.map(
+                  (apt) => Appointment.fromJson(apt as Map<String, dynamic>),
+                )
                 .toList() ??
             [];
         return ApiResponse<List<Appointment>>(
@@ -128,11 +128,10 @@ class AppointmentService {
 
   // PUT /api/appointments/:appointmentId/cancel
   Future<ApiResponse<Map<String, dynamic>>> cancelAppointment(
-      String appointmentId) async {
+    String appointmentId,
+  ) async {
     try {
-      final response = await _client.put(
-        '/appointments/$appointmentId/cancel',
-      );
+      final response = await _client.put('/appointments/$appointmentId/cancel');
 
       final data = _client.parseResponse(response);
 
@@ -155,7 +154,50 @@ class AppointmentService {
       );
     }
   }
+
+  Future<ApiResponse<List<DoctorAppointmentSummary>>> getDoctorAppointments({
+    String? status,
+    String? range,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      if (status != null) queryParams['status'] = status;
+      if (range != null) queryParams['range'] = range;
+
+      final response = await _client.get(
+        '/doctors/dashboard/appointments',
+        queryParams: queryParams,
+      );
+
+      final data = _client.parseResponse(response);
+      if (response.statusCode == 200 && data['success'] == true) {
+        final items = (data['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) => DoctorAppointmentSummary.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
+        return ApiResponse<List<DoctorAppointmentSummary>>(
+          success: true,
+          data: items,
+        );
+      }
+
+      return ApiResponse<List<DoctorAppointmentSummary>>(
+        success: false,
+        message: data['message'] ?? 'Failed to load doctor appointments',
+      );
+    } catch (e) {
+      return ApiResponse<List<DoctorAppointmentSummary>>(
+        success: false,
+        message: e.toString(),
+      );
+    }
+  }
 }
-
-
-

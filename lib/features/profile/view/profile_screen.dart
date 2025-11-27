@@ -24,10 +24,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Map<String, dynamic>? _profile;
   List<Appointment> _appointments = [];
+  List<DoctorAppointmentSummary> _doctorAppointments = [];
   bool _loadingProfile = true;
   bool _loadingAppointments = true;
-  String? _profileError;
   String? _appointmentsError;
+  String? _currentUserRole;
+
+  bool get _isDoctor =>
+      (_currentUserRole ?? '').toLowerCase().trim() == 'doctor';
 
   @override
   void initState() {
@@ -36,13 +40,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadData() async {
+    await _loadCurrentUserRole();
     await Future.wait([_loadProfile(), _loadAppointments()]);
+  }
+
+  Future<void> _loadCurrentUserRole() async {
+    final user = await _authService.getCurrentUser();
+    if (!mounted) return;
+    setState(() {
+      _currentUserRole = user?.role?.toLowerCase();
+    });
   }
 
   Future<void> _loadProfile() async {
     setState(() {
       _loadingProfile = true;
-      _profileError = null;
     });
 
     final response = await _profileService.getProfile();
@@ -55,7 +67,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } else {
       setState(() {
-        _profileError = response.message ?? 'Failed to load profile';
         _loadingProfile = false;
       });
     }
@@ -67,23 +78,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _appointmentsError = null;
     });
 
-    final response = await _appointmentService.getMyAppointments(
-      status: 'confirmed',
-      limit: 20,
-    );
-    if (!mounted) return;
+    if (_isDoctor) {
+      final response = await _appointmentService.getDoctorAppointments(
+        range: 'upcoming',
+        limit: 20,
+      );
+      if (!mounted) return;
 
-    if (response.success && response.data != null) {
-      setState(() {
-        _appointments = response.data!;
-        _loadingAppointments = false;
-      });
+      if (response.success && response.data != null) {
+        setState(() {
+          _doctorAppointments = response.data!;
+          _appointments = [];
+          _loadingAppointments = false;
+        });
+      } else {
+        setState(() {
+          _doctorAppointments = [];
+          _appointmentsError =
+              response.message ?? 'Failed to load doctor appointments';
+          _loadingAppointments = false;
+        });
+      }
     } else {
-      setState(() {
-        _appointmentsError =
-            response.message ?? 'Failed to load your appointments';
-        _loadingAppointments = false;
-      });
+      final response = await _appointmentService.getMyAppointments(
+        status: 'confirmed',
+        limit: 20,
+      );
+      if (!mounted) return;
+
+      if (response.success && response.data != null) {
+        setState(() {
+          _appointments = response.data!;
+          _doctorAppointments = [];
+          _loadingAppointments = false;
+        });
+      } else {
+        setState(() {
+          _appointmentsError =
+              response.message ?? 'Failed to load your appointments';
+          _loadingAppointments = false;
+        });
+      }
     }
   }
 
@@ -177,6 +212,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAllAppointmentsTab() {
+    if (_isDoctor) {
+      return _buildDoctorAppointmentsContent();
+    }
     if (_loadingAppointments && _appointments.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -235,6 +273,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildDoctorAppointmentsContent() {
+    if (_loadingAppointments && _doctorAppointments.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_appointmentsError != null && _doctorAppointments.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _appointmentsError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadAppointments,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadAppointments,
+      child: _doctorAppointments.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(height: 120),
+                Icon(
+                  Icons.event_busy_outlined,
+                  size: 64,
+                  color: Colors.black26,
+                ),
+                SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    'No appointments found.',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+              ],
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              itemCount: _doctorAppointments.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) => _DoctorAppointmentCard(
+                appointment: _doctorAppointments[index],
+                onChat: _doctorAppointments[index].canChat
+                    ? () => _openChatForDoctorAppointment(
+                        _doctorAppointments[index],
+                      )
+                    : null,
+              ),
+            ),
+    );
+  }
+
   Widget _buildAppointmentChatCard(Appointment appointment) {
     final start = appointment.startTime;
     final end = appointment.endTime;
@@ -245,110 +348,158 @@ class _ProfileScreenState extends State<ProfileScreen> {
         appointment.doctor?.specialization ?? 'Doctor Consultation';
     final location = appointment.doctor?.city ?? '––';
 
+    final buttonLabel = canChat
+        ? 'Open chat for this appointment'
+        : (isPast
+              ? 'Chat unavailable (appointment closed)'
+              : 'Chat activates once confirmed');
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFEDEDED)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0x14000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: AppColors.softPurple,
-                child: Text(
-                  doctorName.isNotEmpty ? doctorName[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              gradient: _homeHeroGradient,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white.withOpacity(0.18),
+                  child: Text(
+                    doctorName.isNotEmpty ? doctorName[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        doctorName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (location.isNotEmpty)
+                        Text(
+                          location,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.22),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    appointment.status,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
+                    const Icon(
+                      Icons.calendar_month_outlined,
+                      size: 18,
+                      color: Colors.black54,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      doctorName,
+                      '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
                       style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 18,
+                      color: Colors.black45,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       location,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: Colors.black54,
                       ),
                     ),
                   ],
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: canChat
-                      ? AppColors.primary.withOpacity(0.15)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  appointment.status,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: canChat ? AppColors.primary : Colors.black45,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: canChat
+                        ? () => _openChatForAppointment(appointment)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      disabledForegroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 20,
+                    ),
+                    label: Text(buttonLabel, textAlign: TextAlign.center),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 16,
-                color: Colors.black54,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: canChat
-                  ? () => _openChatForAppointment(appointment)
-                  : null,
-              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-              label: Text(
-                canChat
-                    ? 'Open chat for this appointment'
-                    : (isPast
-                          ? 'Chat unavailable (appointment closed)'
-                          : 'Chat activates once confirmed'),
-              ),
+              ],
             ),
           ),
         ],
@@ -357,6 +508,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _openChatForAppointment(Appointment appointment) {
+    context.pushNamed(
+      RouteConstants.chatScreen,
+      extra: ChatScreenArgs(appointmentId: appointment.id),
+    );
+  }
+
+  void _openChatForDoctorAppointment(DoctorAppointmentSummary appointment) {
     context.pushNamed(
       RouteConstants.chatScreen,
       extra: ChatScreenArgs(appointmentId: appointment.id),
@@ -490,6 +648,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
+    if (_isDoctor) {
+      return _SectionCard(
+        title: 'Your Appointments',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'As a doctor you can view and chat with patients from the Appointments tab.',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                final controller = DefaultTabController.of(context);
+                controller.animateTo(1);
+              },
+              child: const Text('Open Appointments tab'),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_appointments.isEmpty) {
       return _SectionCard(
         title: 'Your Appointments',
@@ -538,55 +719,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildActionTiles() {
-    return Column(
-      children: [
-        _ProfileTile(
-          iconBg: AppColors.softPurple,
-          icon: Icons.person_outline_rounded,
-          title: 'Personal Info',
-          onTap: () {
-            context.pushNamed(RouteConstants.editProfileScreen);
-          },
-        ),
-        _ProfileTile(
-          iconBg: AppColors.softPurple,
-          icon: Icons.shopping_bag_outlined,
-          title: 'My Orders',
-          onTap: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const MyOrdersPage()));
-          },
-        ),
-        _ProfileTile(
-          iconBg: AppColors.softPurple,
-          icon: Icons.favorite_rounded,
-          title: 'My Saved',
-          onTap: () {},
-        ),
-        _ProfileTile(
-          iconBg: AppColors.softPurple,
-          icon: Icons.chat_bubble_outline_rounded,
-          title: 'Contact Support',
-          onTap: () {
-            context.pushNamed(RouteConstants.chatListScreen);
-          },
-        ),
-        _ProfileTile(
-          iconBg: AppColors.softPurple,
-          icon: Icons.feedback_outlined,
-          title: 'Feedback',
-          onTap: () {},
-        ),
-        _ProfileTile(
-          iconBg: AppColors.logoutBg,
-          icon: Icons.logout_rounded,
-          title: 'Logout',
-          titleColor: AppColors.logoutText,
-          onTap: _signOut,
-        ),
-      ],
-    );
+    final tiles = <Widget>[
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: Icons.person_outline_rounded,
+        title: 'Personal Info',
+        onTap: () {
+          context.pushNamed(RouteConstants.editProfileScreen);
+        },
+      ),
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: Icons.shopping_bag_outlined,
+        title: 'My Orders',
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const MyOrdersPage()));
+        },
+      ),
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: Icons.favorite_rounded,
+        title: 'My Saved',
+        onTap: () {},
+      ),
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: _isDoctor
+            ? Icons.forum_outlined
+            : Icons.chat_bubble_outline_rounded,
+        title: _isDoctor ? 'Patient Chats' : 'Contact Support',
+        onTap: () {
+          context.pushNamed(RouteConstants.chatListScreen);
+        },
+      ),
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: Icons.feedback_outlined,
+        title: 'Feedback',
+        onTap: () {},
+      ),
+      _ProfileTile(
+        iconBg: AppColors.logoutBg,
+        icon: Icons.logout_rounded,
+        title: 'Logout',
+        titleColor: AppColors.logoutText,
+        onTap: _signOut,
+      ),
+    ];
+
+    return Column(children: tiles);
   }
 }
 
@@ -838,6 +1021,166 @@ class _AppointmentTile extends StatelessWidget {
   }
 }
 
+class _DoctorAppointmentCard extends StatelessWidget {
+  final DoctorAppointmentSummary appointment;
+  final VoidCallback? onChat;
+
+  const _DoctorAppointmentCard({required this.appointment, this.onChat});
+
+  @override
+  Widget build(BuildContext context) {
+    final patientName = appointment.patient?.name ?? 'Patient';
+    final patientEmail = appointment.patient?.email ?? '';
+    final buttonLabel = appointment.canChat
+        ? 'Open chat with patient'
+        : 'Chat available once confirmed';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: Colors.white,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              gradient: _homeHeroGradient,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white.withOpacity(0.18),
+                  child: Text(
+                    patientName.isNotEmpty ? patientName[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        patientName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (patientEmail.isNotEmpty)
+                        Text(
+                          patientEmail,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    appointment.status,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_month_outlined,
+                      size: 18,
+                      color: Colors.black54,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_formatDate(appointment.startTime)} · ${_formatTime(appointment.startTime)} - ${_formatTime(appointment.endTime)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                if (appointment.reason != null &&
+                    appointment.reason!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Reason: ${appointment.reason}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onChat,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      disabledForegroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 20,
+                    ),
+                    label: Text(buttonLabel, textAlign: TextAlign.center),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _formatDate(DateTime date) {
   return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
@@ -863,3 +1206,9 @@ Color _statusColor(String status) {
       return Colors.blueGrey;
   }
 }
+
+const LinearGradient _homeHeroGradient = LinearGradient(
+  colors: [Color(0xFF2F49D0), Color(0xFF2741BE)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);

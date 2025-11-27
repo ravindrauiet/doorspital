@@ -18,7 +18,8 @@ class AvailableDoctor {
       doctor: Doctor.fromJson(json['doctor'] ?? {}),
       date: json['date'] ?? '',
       availableSlots: json['availableSlots'] ?? 0,
-      slots: (json['slots'] as List<dynamic>?)
+      slots:
+          (json['slots'] as List<dynamic>?)
               ?.map((slot) => TimeSlot.fromJson(slot as Map<String, dynamic>))
               .toList() ??
           [],
@@ -40,11 +41,11 @@ class BookAppointmentRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'doctorId': doctorId,
-        'startTime': startTime,
-        if (reason != null) 'reason': reason,
-        'mode': mode,
-      };
+    'doctorId': doctorId,
+    'startTime': startTime,
+    if (reason != null) 'reason': reason,
+    'mode': mode,
+  };
 }
 
 class Appointment {
@@ -119,6 +120,66 @@ class Appointment {
   }
 }
 
+class DoctorAppointmentSummary {
+  final String id;
+  final String status;
+  final String mode;
+  final DateTime startTime;
+  final DateTime endTime;
+  final String? reason;
+  final DoctorAppointmentPatient? patient;
+
+  const DoctorAppointmentSummary({
+    required this.id,
+    required this.status,
+    required this.mode,
+    required this.startTime,
+    required this.endTime,
+    this.reason,
+    this.patient,
+  });
+
+  bool get canChat =>
+      status.toLowerCase() == 'confirmed' ||
+      status.toLowerCase() == 'completed';
+
+  factory DoctorAppointmentSummary.fromJson(Map<String, dynamic> json) {
+    return DoctorAppointmentSummary(
+      id: json['appointmentId']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'pending',
+      mode: json['mode']?.toString() ?? 'online',
+      startTime: json['startTime'] != null
+          ? DateTime.parse(json['startTime'].toString())
+          : DateTime.now(),
+      endTime: json['endTime'] != null
+          ? DateTime.parse(json['endTime'].toString())
+          : DateTime.now(),
+      reason: json['reason'] as String?,
+      patient: json['patient'] != null
+          ? DoctorAppointmentPatient.fromJson(
+              Map<String, dynamic>.from(json['patient'] as Map),
+            )
+          : null,
+    );
+  }
+}
+
+class DoctorAppointmentPatient {
+  final String? id;
+  final String? name;
+  final String? email;
+
+  const DoctorAppointmentPatient({this.id, this.name, this.email});
+
+  factory DoctorAppointmentPatient.fromJson(Map<String, dynamic> json) {
+    return DoctorAppointmentPatient(
+      id: json['id']?.toString(),
+      name: json['name'] as String?,
+      email: json['email'] as String?,
+    );
+  }
+}
+
 class SearchAvailableDoctorsResponse {
   final String date;
   final int totalDoctors;
@@ -134,12 +195,14 @@ class SearchAvailableDoctorsResponse {
     return SearchAvailableDoctorsResponse(
       date: json['date'] ?? '',
       totalDoctors: json['totalDoctors'] ?? 0,
-      doctors: (json['doctors'] as List<dynamic>?)
-              ?.map((doctor) =>
-                  AvailableDoctor.fromJson(doctor as Map<String, dynamic>))
+      doctors:
+          (json['doctors'] as List<dynamic>?)
+              ?.map(
+                (doctor) =>
+                    AvailableDoctor.fromJson(doctor as Map<String, dynamic>),
+              )
               .toList() ??
           [],
     );
   }
 }
-
