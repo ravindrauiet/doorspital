@@ -14,7 +14,7 @@ import 'package:intl/intl.dart';
 
 class DoctorDetailsScreen extends StatefulWidget {
   final String? doctorId;
-  
+
   const DoctorDetailsScreen({super.key, this.doctorId});
 
   @override
@@ -45,7 +45,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
   Future<void> _loadDoctorDetails() async {
     if (widget.doctorId == null) return;
-    
+
     setState(() {
       _loading = true;
       _error = null;
@@ -78,7 +78,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
   Future<void> _loadAvailability() async {
     if (widget.doctorId == null) return;
-    
+
     final provider = context.read<DoctorAvailabilityProvider>();
     provider.setLoading(true);
 
@@ -109,6 +109,34 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     }
   }
 
+  Future<bool> _isSlotStillAvailable(TimeSlot slot) async {
+    if (widget.doctorId == null) {
+      return false;
+    }
+
+    final response = await _doctorService.getAvailabilitySchedule(
+      widget.doctorId!,
+      start: slot.startUtc,
+      days: 1,
+    );
+
+    if (!response.success || response.data == null) {
+      // If we cannot verify, let the backend guard against duplicates
+      return true;
+    }
+
+    for (final day in response.data!.days) {
+      for (final refreshedSlot in day.slots) {
+        if (refreshedSlot.startUtc == slot.startUtc) {
+          return refreshedSlot.available;
+        }
+      }
+    }
+
+    // Slot not returned anymore; assume unavailable
+    return false;
+  }
+
   Future<void> _bookAppointment() async {
     final provider = context.read<DoctorAvailabilityProvider>();
     if (provider.selectedSlot == null || widget.doctorId == null) {
@@ -118,12 +146,28 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       return;
     }
 
+    final selectedSlot = provider.selectedSlot!;
+    final slotStillAvailable = await _isSlotStillAvailable(selectedSlot);
+    if (!slotStillAvailable) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This slot has just been booked by someone else. Please pick another time.',
+          ),
+        ),
+      );
+      provider.clearSelection();
+      await _loadAvailability();
+      return;
+    }
+
     setState(() => _booking = true);
 
     try {
       final request = BookAppointmentRequest(
         doctorId: widget.doctorId!,
-        startTime: provider.selectedSlot!.startUtc,
+        startTime: selectedSlot.startUtc,
         mode: 'online',
       );
 
@@ -132,22 +176,37 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       if (mounted) {
         if (response.success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response.message ?? 'Appointment booked successfully!')),
+            SnackBar(
+              content: Text(
+                response.message ?? 'Appointment booked successfully!',
+              ),
+            ),
           );
-          // Navigate to success screen or back
-          context.pop();
+          provider.clearSelection();
+          await _loadAvailability();
+          if (mounted) {
+            context.pop();
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response.message ?? 'Failed to book appointment')),
+            SnackBar(
+              content: Text(response.message ?? 'Failed to book appointment'),
+            ),
           );
+          final lowerMessage = response.message?.toLowerCase() ?? '';
+          if (lowerMessage.contains('slot')) {
+            provider.clearSelection();
+            await _loadAvailability();
+          }
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+      await _loadAvailability();
     } finally {
       if (mounted) {
         setState(() => _booking = false);
@@ -365,139 +424,154 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           availabilityState.loading
               ? const Center(child: CircularProgressIndicator())
               : availabilityState.days.isEmpty
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          'No availability scheduled',
-                          style: TextStyle(color: Colors.grey),
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'No availability scheduled',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Helper text if no slots on first days
+                    if (availabilityState.days.isNotEmpty &&
+                        !availabilityState
+                            .days[availabilityState.selectedDayIndex]
+                            .hasAvailableSlots)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Colors.orange[700],
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Scroll right to see days with available slots',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange[700],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Helper text if no slots on first days
-                        if (availabilityState.days.isNotEmpty &&
-                            !availabilityState.days[availabilityState.selectedDayIndex]
-                                .hasAvailableSlots)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Icon(Icons.info_outline,
-                                    size: 16, color: Colors.orange[700]),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Scroll right to see days with available slots',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.orange[700],
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                    SizedBox(
+                      height: 85,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: availabilityState.days.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, i) {
+                          final selected =
+                              i == availabilityState.selectedDayIndex;
+                          final day = availabilityState.days[i];
+                          return _DayPill(
+                            day: day,
+                            selected: selected,
+                            onTap: () => availabilityState.selectDay(i),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(thickness: 1, color: Color(0xFFEFF2F7)),
+                    const SizedBox(height: 12),
+                    // Show selected date info
+                    if (availabilityState.selectedDayIndex <
+                        availabilityState.days.length)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: AppColors.teal,
                             ),
-                          ),
-                        SizedBox(
-                          height: 85,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: availabilityState.days.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 12),
-                            itemBuilder: (context, i) {
-                              final selected = i == availabilityState.selectedDayIndex;
-                              final day = availabilityState.days[i];
-                              return _DayPill(
-                                day: day,
-                                selected: selected,
-                                onTap: () => availabilityState.selectDay(i),
-                              );
-                            },
-                          ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Available slots for ${_formatDate(availabilityState.days[availabilityState.selectedDayIndex].date)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        const Divider(thickness: 1, color: Color(0xFFEFF2F7)),
-                        const SizedBox(height: 12),
-                        // Show selected date info
-                        if (availabilityState.selectedDayIndex < availabilityState.days.length)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.calendar_today, size: 16, color: AppColors.teal),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Available slots for ${_formatDate(availabilityState.days[availabilityState.selectedDayIndex].date)}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF111827),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        // Times grid
-                        availabilityState.availableSlots.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24.0),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.event_busy,
-                                        size: 48,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      const Text(
-                                        'No available slots for this day',
-                                        style: TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Try selecting another date',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                    // Times grid
+                    availabilityState.availableSlots.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
                                 children: [
-                                  Text(
-                                    'Select a time slot (${availabilityState.availableSlots.length} available)',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFF8F9BB3),
-                                    ),
+                                  Icon(
+                                    Icons.event_busy,
+                                    size: 48,
+                                    color: Colors.grey[400],
                                   ),
                                   const SizedBox(height: 12),
-                                  GridView.builder(
-                                itemCount: availabilityState.availableSlots.length,
+                                  const Text(
+                                    'No available slots for this day',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Try selecting another date',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Select a time slot (${availabilityState.availableSlots.length} available)',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF8F9BB3),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              GridView.builder(
+                                itemCount:
+                                    availabilityState.availableSlots.length,
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 gridDelegate:
                                     const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 3,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                  childAspectRatio: 2.8,
-                                ),
+                                      crossAxisCount: 3,
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                      childAspectRatio: 2.8,
+                                    ),
                                 itemBuilder: (context, index) {
-                                  final slot = availabilityState.availableSlots[index];
-                                  final selected = availabilityState.selectedSlot?.startUtc ==
+                                  final slot =
+                                      availabilityState.availableSlots[index];
+                                  final selected =
+                                      availabilityState
+                                          .selectedSlot
+                                          ?.startUtc ==
                                       slot.startUtc;
 
                                   // Use label from API if available, otherwise format the time
@@ -510,15 +584,16 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                                     selected: selected,
                                     available: slot.available,
                                     onTap: slot.available
-                                        ? () => availabilityState.selectSlot(slot)
+                                        ? () =>
+                                              availabilityState.selectSlot(slot)
                                         : null,
                                   );
                                 },
                               ),
-                                ],
-                              ),
-                      ],
-                    ),
+                            ],
+                          ),
+                  ],
+                ),
 
           const SizedBox(height: 24),
         ],
@@ -598,7 +673,10 @@ class _DayPill extends StatelessWidget {
                 if (day.hasAvailableSlots) ...[
                   const SizedBox(width: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: selected
                           ? AppColors.white.withOpacity(0.3)
@@ -666,14 +744,14 @@ class _TimeChip extends StatelessWidget {
             color: selected
                 ? AppColors.teal
                 : available
-                    ? Colors.white
-                    : Colors.grey[200],
+                ? Colors.white
+                : Colors.grey[200],
             border: Border.all(
               color: selected
                   ? Colors.transparent
                   : available
-                      ? const Color(0xFFE7ECF3)
-                      : Colors.grey[300]!,
+                  ? const Color(0xFFE7ECF3)
+                  : Colors.grey[300]!,
             ),
             boxShadow: [
               if (selected)
@@ -692,8 +770,8 @@ class _TimeChip extends StatelessWidget {
                 color: selected
                     ? Colors.white
                     : available
-                        ? const Color(0xFF111827)
-                        : Colors.grey[600]!,
+                    ? const Color(0xFF111827)
+                    : Colors.grey[600]!,
                 fontSize: 12,
               ),
             ),
@@ -724,8 +802,8 @@ class _ReadMoreTextState extends State<ReadMoreText> {
     final String visibleText = isExpanded
         ? widget.text
         : widget.text.length > widget.trimLength
-            ? widget.text.substring(0, widget.trimLength)
-            : widget.text;
+        ? widget.text.substring(0, widget.trimLength)
+        : widget.text;
 
     return GestureDetector(
       onTap: () {

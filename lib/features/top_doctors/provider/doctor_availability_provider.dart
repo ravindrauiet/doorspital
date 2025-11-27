@@ -31,9 +31,11 @@ class DoctorAvailabilityProvider extends ChangeNotifier {
       final dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       final dayName = dayNames[date.weekday % 7];
       final dayNumber = date.day.toString();
-      final availableSlots = dayData.slots.where((slot) => slot.available).toList();
+      final availableSlots = dayData.slots
+          .where((slot) => slot.available)
+          .toList();
       final hasSlots = availableSlots.isNotEmpty;
-      
+
       return Day(
         label: dayName,
         day: dayNumber,
@@ -42,7 +44,7 @@ class DoctorAvailabilityProvider extends ChangeNotifier {
         availableSlotsCount: availableSlots.length,
       );
     }).toList();
-    
+
     // Auto-select the first day with available slots
     int firstDayWithSlots = _days.indexWhere((day) => day.hasAvailableSlots);
     if (firstDayWithSlots != -1) {
@@ -57,7 +59,9 @@ class DoctorAvailabilityProvider extends ChangeNotifier {
   void _updateSlotsForSelectedDay() {
     if (_selectedDayIndex < _availabilityDays.length) {
       final selectedDay = _availabilityDays[_selectedDayIndex];
-      _availableSlots = selectedDay.slots.where((slot) => slot.available).toList();
+      _availableSlots = selectedDay.slots
+          .where((slot) => slot.available)
+          .toList();
     } else {
       _availableSlots = [];
     }
@@ -74,6 +78,11 @@ class DoctorAvailabilityProvider extends ChangeNotifier {
 
   void selectSlot(TimeSlot slot) {
     _selectedSlot = slot;
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    _selectedSlot = null;
     notifyListeners();
   }
 
@@ -108,4 +117,3 @@ class Day {
     this.availableSlotsCount = 0,
   });
 }
-
