@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:door/features/chat/components/chat_body.dart';
 import 'package:door/features/chat/components/chat_input_bar.dart';
 import 'package:door/services/api_client.dart';
@@ -42,6 +44,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _sending = false;
   String? _error;
   Map<String, dynamic>? _currentUser;
+  Timer? _pollingTimer;
+  bool _isPolling = false;
 
   @override
   void initState() {
@@ -63,6 +67,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       await _loadMessages();
       _markRoomRead();
+      _startPolling();
     } else if (widget.args?.appointmentId != null) {
       await _createRoomFromAppointment(widget.args!.appointmentId!);
     } else {
@@ -88,6 +93,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       await _loadMessages();
       _markRoomRead();
+      _startPolling();
     } else {
       setState(() {
         _loadingRoom = false;
@@ -131,6 +137,9 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       if (!loadMore) {
         _scrollToBottom();
+      }
+      if (!loadMore) {
+        _startPolling();
       }
     } else {
       setState(() {
@@ -205,10 +214,48 @@ class _ChatScreenState extends State<ChatScreen> {
     return DateFormat('MMM d, hh:mm a').format(appointment.startTime.toLocal());
   }
 
+  void _startPolling() {
+    if (_pollingTimer != null || _room == null) return;
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      await _refreshMessagesSilently();
+    });
+  }
+
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+  }
+
+  Future<void> _refreshMessagesSilently() async {
+    if (!mounted || _room == null || _isPolling) return;
+    _isPolling = true;
+    final response = await _chatService.getMessages(_room!.id, limit: 30);
+    if (!mounted) {
+      _isPolling = false;
+      return;
+    }
+    if (response.success && response.data != null) {
+      final latest = response.data!.messages.reversed.toList();
+      final newestId = latest.isNotEmpty ? latest.last.id : null;
+      final currentNewestId = _messages.isNotEmpty ? _messages.last.id : null;
+      setState(() {
+        _messages = latest;
+        _nextCursor = response.data!.nextCursor;
+        _hasMore = response.data!.nextCursor != null;
+      });
+      if (newestId != null && newestId != currentNewestId) {
+        _scrollToBottom();
+      }
+    }
+    _isPolling = false;
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _stopPolling();
     super.dispose();
   }
 
