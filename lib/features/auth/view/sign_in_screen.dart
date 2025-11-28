@@ -57,32 +57,25 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   void _showError(String message) {
-    // Show detailed error in snackbar
+    // Show error in snackbar with close button
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'Details',
-          onPressed: () {
-            // Show full error in a dialog
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Connection Error'),
-                content: SingleChildScrollView(
-                  child: Text(message),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          },
+        content: Row(
+          children: [
+            Expanded(
+              child: Text(message),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 20),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ],
         ),
+        duration: const Duration(seconds: 5),
       ),
     );
   }

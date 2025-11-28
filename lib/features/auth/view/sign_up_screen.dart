@@ -25,14 +25,36 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _authService = AuthService();
 
+  void _showError(String message) {
+    // Show error in snackbar with close button
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Expanded(
+              child: Text(message),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 20),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
   Future<void> _signUp() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final checkBoxProvider = context.read<CheckBoxProvider>();
     if (!checkBoxProvider.agreeTos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please agree to the Terms of Service')),
-      );
+      _showError('Please agree to the Terms of Service');
       return;
     }
 
@@ -52,20 +74,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (response.success) {
         // Successfully signed up
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? 'Sign up successful')),
+          SnackBar(
+            content: Text(response.message ?? 'Sign up successful'),
+            duration: const Duration(seconds: 3),
+          ),
         );
         // Navigate to sign in or home
         context.pushReplacementNamed(RouteConstants.signInScreen);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? 'Sign up failed')),
-        );
+        _showError(response.message ?? 'Sign up failed');
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Network error: $e')),
-      );
+      _showError('Network error: $e');
     } finally {
       if (mounted) {
         checkBoxProvider.setLoading(false);
