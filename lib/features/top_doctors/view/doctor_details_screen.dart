@@ -9,6 +9,7 @@ import 'package:door/features/top_doctors/provider/doctor_availability_provider.
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:door/features/home/provider/bottom_navbar_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -175,17 +176,23 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
       if (mounted) {
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                response.message ?? 'Appointment booked successfully!',
-              ),
-            ),
-          );
+          // Show an obvious success animation/dialog, then navigate to Profile (appointments)
           provider.clearSelection();
           await _loadAvailability();
-          if (mounted) {
-            context.pop();
+          await _showBookingSuccessAnimation();
+          if (!mounted) return;
+          // After animation, switch bottom navbar to Profile tab and navigate there
+          // set provider index to Profile (index 2)
+          try {
+            context.read<BottomNavbarProvider>().updateIndex(2);
+          } catch (_) {}
+          if (!mounted) return;
+          // Use go_router to go to bottom navbar screen (replaces current location)
+          try {
+            context.goNamed(RouteConstants.bottomNavBarScreen);
+          } catch (e) {
+            // Fallback to Navigator if go_router isn't available in this context
+            Navigator.of(context).pushReplacementNamed(RouteConstants.bottomNavBarScreen);
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -212,6 +219,58 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         setState(() => _booking = false);
       }
     }
+  }
+
+  Future<void> _showBookingSuccessAnimation() async {
+    if (!mounted) return;
+    // Show dialog without awaiting it, then auto-close after a short delay.
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Booking success',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) {
+        // pageBuilder must return a widget but we'll render in transitionBuilder
+        return const SizedBox.shrink();
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        final scale = 0.8 + 0.2 * anim1.value;
+        return Opacity(
+          opacity: anim1.value,
+          child: Transform.scale(
+            scale: scale,
+            child: Center(
+              child: Container(
+                width: 260,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 12)],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.check_circle, size: 72, color: AppColors.teal),
+                    SizedBox(height: 10),
+                    Text('Appointment Booked', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400)),
+                    SizedBox(height: 6),
+                    Text('Your appointment was booked successfully.', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    // keep dialog visible briefly then close it
+    await Future.delayed(const Duration(milliseconds: 1000));
+    if (!mounted) return;
+    try {
+      Navigator.of(context, rootNavigator: true).pop();
+    } catch (_) {}
   }
 
   @override

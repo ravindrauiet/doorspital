@@ -20,15 +20,15 @@ class DoctorSignUpRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'email': email,
-        'password': password,
-        'specialization': specialization,
-        if (experienceYears != null) 'experienceYears': experienceYears,
-        if (consultationFee != null) 'consultationFee': consultationFee,
-        if (city != null) 'city': city,
-        if (timeZone != null) 'timeZone': timeZone,
-      };
+    'name': name,
+    'email': email,
+    'password': password,
+    'specialization': specialization,
+    if (experienceYears != null) 'experienceYears': experienceYears,
+    if (consultationFee != null) 'consultationFee': consultationFee,
+    if (city != null) 'city': city,
+    if (timeZone != null) 'timeZone': timeZone,
+  };
 }
 
 class Doctor {
@@ -97,21 +97,21 @@ class DoctorVerificationRequest {
   });
 
   Map<String, String> toFormFields() => {
-        'doctorId': doctorId,
-        'fullName': fullName,
-        'email': email,
-        'phoneNumber': phoneNumber,
-        'medicalSpecialization': medicalSpecialization,
-        'yearsOfExperience': yearsOfExperience.toString(),
-        'clinicHospitalName': clinicHospitalName,
-        'clinicAddress': clinicAddress,
-        'state': state,
-        'city': city,
-        'registrationNumber': registrationNumber,
-        'councilName': councilName,
-        'issueDate': issueDate,
-        'documentType': documentType,
-      };
+    'doctorId': doctorId,
+    'fullName': fullName,
+    'email': email,
+    'phoneNumber': phoneNumber,
+    'medicalSpecialization': medicalSpecialization,
+    'yearsOfExperience': yearsOfExperience.toString(),
+    'clinicHospitalName': clinicHospitalName,
+    'clinicAddress': clinicAddress,
+    'state': state,
+    'city': city,
+    'registrationNumber': registrationNumber,
+    'councilName': councilName,
+    'issueDate': issueDate,
+    'documentType': documentType,
+  };
 }
 
 class AvailabilityRule {
@@ -130,13 +130,12 @@ class AvailabilityRule {
   });
 
   Map<String, dynamic> toJson() => {
-        'dayOfWeek': dayOfWeek,
-        'startTime': startTime,
-        'endTime': endTime,
-        if (slotDurationMinutes != null)
-          'slotDurationMinutes': slotDurationMinutes,
-        if (isActive != null) 'isActive': isActive,
-      };
+    'dayOfWeek': dayOfWeek,
+    'startTime': startTime,
+    'endTime': endTime,
+    if (slotDurationMinutes != null) 'slotDurationMinutes': slotDurationMinutes,
+    if (isActive != null) 'isActive': isActive,
+  };
 }
 
 class SetAvailabilityRequest {
@@ -145,26 +144,32 @@ class SetAvailabilityRequest {
   SetAvailabilityRequest({required this.availability});
 
   Map<String, dynamic> toJson() => {
-        'availability': availability.map((rule) => rule.toJson()).toList(),
-      };
+    'availability': availability.map((rule) => rule.toJson()).toList(),
+  };
 }
 
 class TimeSlot {
   final String startUtc;
+  final String? startLocal;
   final String label;
   final bool available;
+  final int? durationMinutes;
 
   TimeSlot({
     required this.startUtc,
     required this.label,
     required this.available,
+    this.startLocal,
+    this.durationMinutes,
   });
 
   factory TimeSlot.fromJson(Map<String, dynamic> json) {
     return TimeSlot(
       startUtc: json['startUtc'] ?? '',
+      startLocal: json['startLocal'] as String?,
       label: json['label'] ?? '',
       available: json['available'] ?? false,
+      durationMinutes: json['durationMinutes'] as int?,
     );
   }
 }
@@ -173,15 +178,13 @@ class DayAvailability {
   final String date;
   final List<TimeSlot> slots;
 
-  DayAvailability({
-    required this.date,
-    required this.slots,
-  });
+  DayAvailability({required this.date, required this.slots});
 
   factory DayAvailability.fromJson(Map<String, dynamic> json) {
     return DayAvailability(
       date: json['date'] ?? '',
-      slots: (json['slots'] as List<dynamic>?)
+      slots:
+          (json['slots'] as List<dynamic>?)
               ?.map((slot) => TimeSlot.fromJson(slot as Map<String, dynamic>))
               .toList() ??
           [],
@@ -193,17 +196,16 @@ class AvailabilityResponse {
   final String doctorId;
   final List<DayAvailability> days;
 
-  AvailabilityResponse({
-    required this.doctorId,
-    required this.days,
-  });
+  AvailabilityResponse({required this.doctorId, required this.days});
 
   factory AvailabilityResponse.fromJson(Map<String, dynamic> json) {
     return AvailabilityResponse(
       doctorId: json['doctorId'] ?? '',
-      days: (json['days'] as List<dynamic>?)
-              ?.map((day) =>
-                  DayAvailability.fromJson(day as Map<String, dynamic>))
+      days:
+          (json['days'] as List<dynamic>?)
+              ?.map(
+                (day) => DayAvailability.fromJson(day as Map<String, dynamic>),
+              )
               .toList() ??
           [],
     );
@@ -214,10 +216,7 @@ class VerificationStatus {
   final String status;
   final String? message;
 
-  VerificationStatus({
-    required this.status,
-    this.message,
-  });
+  VerificationStatus({required this.status, this.message});
 
   factory VerificationStatus.fromJson(Map<String, dynamic> json) {
     return VerificationStatus(
@@ -226,6 +225,3 @@ class VerificationStatus {
     );
   }
 }
-
-
-

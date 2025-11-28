@@ -36,17 +36,24 @@ class _SignInScreenState extends State<SignInScreen> {
         password: _password.text,
       );
 
+      print('🔐 Sign in attempt for: ${request.email}');
       final response = await _authService.signIn(request);
 
       if (!mounted) return;
 
+      print('📥 Sign in response - success: ${response.success}, data: ${response.data}');
+      
       if (response.success && response.data != null) {
+        print('✅ Sign in successful, navigating to home');
         // Successfully signed in
         context.pushReplacementNamed(RouteConstants.bottomNavBarScreen);
       } else {
+        print('❌ Sign in failed: ${response.message}');
         _showError(response.message ?? 'Sign in failed');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Sign in exception: $e');
+      print('❌ Stack trace: $stackTrace');
       if (!mounted) return;
       _showError('Network error: $e');
     } finally {

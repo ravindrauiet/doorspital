@@ -16,21 +16,58 @@ class AuthService {
       );
 
       print('✅ Received response with status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
 
       final data = _client.parseResponse(response);
+      print('📦 Parsed data: $data');
 
       if (response.statusCode == 200 && data['success'] == true) {
+        // Ensure user data is properly formatted
+        final userData = data['user'] ?? {};
+        print('👤 User data: $userData');
+        
+        // Convert user._id to string if it's an ObjectId
+        if (userData['id'] != null && userData['id'] is! String) {
+          userData['id'] = userData['id'].toString();
+        }
+        if (userData['_id'] != null) {
+          userData['id'] = userData['_id'].toString();
+        }
+        
         // Save token and user data
-        await _client.setToken(data['token'] ?? '');
-        await _client.setUserData(data['user'] ?? {});
+        final token = data['token'] ?? '';
+        if (token.isEmpty) {
+          print('⚠️ Warning: Token is empty!');
+        }
+        
+        await _client.setToken(token);
+        await _client.setUserData(userData);
 
         print('✅ Sign in successful, token saved');
+        print('👤 User role: ${userData['role']}');
 
-        return ApiResponse<SignInResponse>(
-          success: true,
-          message: data['message'],
-          data: SignInResponse.fromJson(data),
-        );
+        try {
+          final signInResponse = SignInResponse.fromJson(data);
+          return ApiResponse<SignInResponse>(
+            success: true,
+            message: data['message'],
+            data: signInResponse,
+          );
+        } catch (parseError) {
+          print('❌ Error parsing SignInResponse: $parseError');
+          // Even if parsing fails, if we have token and user data, consider it successful
+          if (token.isNotEmpty && userData.isNotEmpty) {
+            return ApiResponse<SignInResponse>(
+              success: true,
+              message: data['message'] ?? 'Sign in successful',
+              data: SignInResponse(
+                token: token,
+                user: User.fromJson(userData),
+              ),
+            );
+          }
+          throw parseError;
+        }
       } else {
         print('❌ Sign in failed: ${data['message']}');
         return ApiResponse<SignInResponse>(
@@ -39,8 +76,9 @@ class AuthService {
           errors: data['errors'],
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ Sign in error: $e');
+      print('❌ Stack trace: $stackTrace');
       return ApiResponse<SignInResponse>(
         success: false,
         message: e.toString(),

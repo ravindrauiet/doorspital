@@ -81,6 +81,33 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   void _openRoom(ChatRoom room) {
+    final appointment = room.appointment;
+    if (appointment != null) {
+      final now = DateTime.now();
+      final startTime = appointment.startTime.toLocal();
+      
+      if (now.isBefore(startTime)) {
+        final timeUntilStart = startTime.difference(now);
+        final minutes = timeUntilStart.inMinutes;
+        final hours = timeUntilStart.inHours;
+        
+        String message;
+        if (hours > 0) {
+          message = 'Chat will open in $hours hour${hours > 1 ? 's' : ''} and $minutes minute${minutes != 1 ? 's' : ''}';
+        } else {
+          message = 'Chat will open in $minutes minute${minutes != 1 ? 's' : ''}';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
+    
     context.pushNamed(
       RouteConstants.chatScreen,
       extra: ChatScreenArgs(room: room),

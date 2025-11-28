@@ -46,6 +46,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? _currentUser;
   Timer? _pollingTimer;
   bool _isPolling = false;
+  Timer? _timeMonitorTimer;
+  bool _chatEnabled = true;
+  bool _oneMinuteWarningShown = false;
+  bool _isPreSession = false;
+  String? _timeStatusMessage;
+  Duration? _timeRemaining;
 
   @override
   void initState() {
@@ -62,12 +68,17 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     if (_room != null) {
+      // Check if appointment has started
+      if (!_checkAppointmentTime()) {
+        return;
+      }
       setState(() {
         _loadingRoom = false;
       });
       await _loadMessages();
       _markRoomRead();
       _startPolling();
+      _startTimeMonitoring();
     } else if (widget.args?.appointmentId != null) {
       await _createRoomFromAppointment(widget.args!.appointmentId!);
     } else {
@@ -76,6 +87,48 @@ class _ChatScreenState extends State<ChatScreen> {
         _error = 'No conversation selected.';
       });
     }
+  }
+
+  bool _checkAppointmentTime() {
+    final appointment = _room?.appointment;
+    if (appointment == null) return true; // No appointment, allow chat
+
+    final now = DateTime.now();
+    final startTime = appointment.startTime.toLocal();
+    final endTime = appointment.endTime.toLocal();
+
+    if (now.isBefore(startTime)) {
+      final timeUntilStart = startTime.difference(now);
+      final minutes = timeUntilStart.inMinutes;
+      final hours = timeUntilStart.inHours;
+
+      String message;
+      if (hours > 0) {
+        message =
+            'Chat will open in $hours hour${hours > 1 ? 's' : ''} and $minutes minute${minutes != 1 ? 's' : ''}';
+      } else {
+        message = 'Chat will open in $minutes minute${minutes != 1 ? 's' : ''}';
+      }
+
+      setState(() {
+        _loadingRoom = false;
+        _error = message;
+        _chatEnabled = false;
+      });
+      return false;
+    }
+
+    if (now.isAfter(endTime)) {
+      setState(() {
+        _loadingRoom = false;
+        _error = 'Appointment time has ended. Chat is now closed.';
+        _chatEnabled = false;
+        _timeStatusMessage = 'Appointment ended';
+      });
+      return false;
+    }
+
+    return true;
   }
 
   Future<void> _createRoomFromAppointment(String appointmentId) async {
@@ -91,9 +144,16 @@ class _ChatScreenState extends State<ChatScreen> {
         _room = response.data!;
         _loadingRoom = false;
       });
+
+      // Check if appointment has started
+      if (!_checkAppointmentTime()) {
+        return;
+      }
+
       await _loadMessages();
       _markRoomRead();
       _startPolling();
+      _startTimeMonitoring();
     } else {
       setState(() {
         _loadingRoom = false;
@@ -151,7 +211,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _handleSend(String text) async {
-    if (_room == null) return;
+    if (_room == null || !_chatEnabled) return;
 
     setState(() {
       _sending = true;
@@ -227,6 +287,103 @@ class _ChatScreenState extends State<ChatScreen> {
     _isPolling = false;
   }
 
+  void _startTimeMonitoring() {
+    if (_timeMonitorTimer != null || _room == null) return;
+
+    _timeMonitorTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _checkAppointmentEndTime();
+    });
+
+    // Check immediately
+    _checkAppointmentEndTime();
+  }
+
+  void _stopTimeMonitoring() {
+    _timeMonitorTimer?.cancel();
+    _timeMonitorTimer = null;
+  }
+
+  void _checkAppointmentEndTime() {
+    if (!mounted || _room == null) return;
+
+    final appointment = _room!.appointment;
+    if (appointment == null) return;
+
+    final now = DateTime.now();
+    final startTime = appointment.startTime.toLocal();
+    final endTime = appointment.endTime.toLocal();
+
+    // Chat isn't available before the appointment starts
+    if (now.isBefore(startTime)) {
+      final diff = startTime.difference(now);
+      setState(() {
+        _chatEnabled = false;
+        _isPreSession = true;
+        _timeRemaining = diff;
+        _timeStatusMessage = 'Chat opens in';
+      });
+      return;
+    }
+
+    // Chat ends once the appointment window is over
+    if (!now.isBefore(endTime)) {
+      setState(() {
+        _chatEnabled = false;
+        _isPreSession = false;
+        _timeRemaining = null;
+        _timeStatusMessage = 'Appointment time has ended. Chat is now closed.';
+      });
+      _stopTimeMonitoring();
+      _stopPolling();
+      return;
+    }
+
+    final timeUntilEnd = endTime.difference(now);
+
+    setState(() {
+      _chatEnabled = true;
+      _isPreSession = false;
+      _timeRemaining = timeUntilEnd;
+      _timeStatusMessage = 'Time left in this session';
+    });
+
+    if (timeUntilEnd.inSeconds <= 60 && !_oneMinuteWarningShown) {
+      _showOneMinuteWarning();
+      setState(() {
+        _oneMinuteWarningShown = true;
+      });
+    } else if (timeUntilEnd.inSeconds > 60 && _oneMinuteWarningShown) {
+      setState(() {
+        _oneMinuteWarningShown = false;
+      });
+    }
+  }
+
+  void _showOneMinuteWarning() {
+    if (!mounted) return;
+
+    // Create a system message-like notification in the chat
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.access_time, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '⚠️ Only 1 minute left in your appointment',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _refreshMessagesSilently() async {
     if (!mounted || _room == null || _isPolling) return;
     _isPolling = true;
@@ -256,6 +413,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     _stopPolling();
+    _stopTimeMonitoring();
     super.dispose();
   }
 
@@ -327,6 +485,18 @@ class _ChatScreenState extends State<ChatScreen> {
               )
             : Column(
                 children: [
+                  if (_timeStatusMessage != null)
+                    _SessionStatusBanner(
+                      message: _timeStatusMessage!,
+                      isActive: _chatEnabled,
+                      isFinalMinute:
+                          _timeRemaining != null &&
+                          _timeRemaining!.inSeconds <= 60,
+                      isWaiting: _isPreSession,
+                      countdownText: _timeRemaining != null
+                          ? _countdownDigits(_timeRemaining!)
+                          : null,
+                    ),
                   Expanded(
                     child: Container(
                       decoration: const BoxDecoration(
@@ -350,10 +520,108 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _messageController,
                     onSend: _handleSend,
                     isSending: _sending,
-                    enabled: !_loadingMessages && _room != null,
+                    enabled: _chatEnabled && !_loadingMessages && _room != null,
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    if (duration.inSeconds <= 0) return '0s';
+
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+
+    if (hours > 0) {
+      return minutes == 0
+          ? '${hours}h'
+          : '${hours}h ${minutes.toString().padLeft(2, '0')}m';
+    }
+
+    if (duration.inMinutes >= 1) {
+      return seconds == 0
+          ? '${duration.inMinutes}m'
+          : '${duration.inMinutes}m ${seconds.toString().padLeft(2, '0')}s';
+    }
+
+    return '${seconds.toString().padLeft(2, '0')}s';
+  }
+
+  String _countdownDigits(Duration duration) {
+    final totalSeconds = duration.inSeconds;
+    if (totalSeconds <= 0) return '00:00';
+
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+    }
+
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
+class _SessionStatusBanner extends StatelessWidget {
+  final String message;
+  final bool isActive;
+  final bool isFinalMinute;
+  final bool isWaiting;
+  final String? countdownText;
+
+  const _SessionStatusBanner({
+    required this.message,
+    required this.isActive,
+    required this.isFinalMinute,
+    required this.isWaiting,
+    this.countdownText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent;
+    final IconData icon;
+
+    if (!isActive) {
+      accent = isWaiting ? Colors.orange : Colors.redAccent;
+      icon = isWaiting ? Icons.access_time : Icons.lock_clock;
+    } else {
+      accent = isFinalMinute ? Colors.orange : AppColors.primary;
+      icon = isFinalMinute ? Icons.timelapse : Icons.access_time;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: accent.withOpacity(0.12),
+      child: Row(
+        children: [
+          Icon(icon, color: accent, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          if (countdownText != null)
+            Text(
+              countdownText!,
+              style: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+        ],
       ),
     );
   }

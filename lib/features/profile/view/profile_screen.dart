@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:door/features/chat/view/chat_screen.dart';
 import 'package:door/features/components/custom_appbar.dart';
 import 'package:door/routes/route_constants.dart';
@@ -29,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loadingAppointments = true;
   String? _appointmentsError;
   String? _currentUserRole;
+  Timer? _countdownTimer;
 
   bool get _isDoctor =>
       (_currentUserRole ?? '').toLowerCase().trim() == 'doctor';
@@ -36,7 +39,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _startCountdownTicker();
     _loadData();
+  }
+
+  void _startCountdownTicker() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -86,8 +105,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       if (response.success && response.data != null) {
+        final sorted = List<DoctorAppointmentSummary>.from(response.data!);
+        sorted.sort((a, b) => a.startTime.compareTo(b.startTime));
         setState(() {
-          _doctorAppointments = response.data!;
+          _doctorAppointments = sorted;
           _appointments = [];
           _loadingAppointments = false;
         });
@@ -107,8 +128,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       if (response.success && response.data != null) {
+        final sorted = List<Appointment>.from(response.data!);
+        sorted.sort((a, b) => a.startTime.compareTo(b.startTime));
         setState(() {
-          _appointments = response.data!;
+          _appointments = sorted;
           _doctorAppointments = [];
           _loadingAppointments = false;
         });
@@ -155,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(50),
+                    borderRadius: BorderRadius.circular(7),
                     border: Border.all(color: const Color(0xFFE7E7E7)),
                   ),
                   child: const TabBar(
@@ -163,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     unselectedLabelColor: Colors.black54,
                     indicator: BoxDecoration(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.all(Radius.circular(50)),
+                      borderRadius: BorderRadius.all(Radius.circular(7)),
                     ),
                     tabs: [
                       Tab(text: 'Overview'),
@@ -242,9 +265,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
+    final patientAppointments = _sortedPatientAppointments();
+
     return RefreshIndicator(
       onRefresh: _loadAppointments,
-      child: _appointments.isEmpty
+      child: patientAppointments.isEmpty
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: const [
@@ -265,10 +290,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
           : ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              itemCount: _appointments.length,
+              itemCount: patientAppointments.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) =>
-                  _buildAppointmentChatCard(_appointments[index]),
+                  _buildAppointmentChatCard(patientAppointments[index]),
             ),
     );
   }
@@ -301,9 +326,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
+    final doctorAppointments = _sortedDoctorAppointments();
+
     return RefreshIndicator(
       onRefresh: _loadAppointments,
-      child: _doctorAppointments.isEmpty
+      child: doctorAppointments.isEmpty
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: const [
@@ -324,13 +351,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
           : ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              itemCount: _doctorAppointments.length,
+              itemCount: doctorAppointments.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) => _DoctorAppointmentCard(
-                appointment: _doctorAppointments[index],
-                onChat: _doctorAppointments[index].canChat
+                appointment: doctorAppointments[index],
+                onChat: doctorAppointments[index].canChat
                     ? () => _openChatForDoctorAppointment(
-                        _doctorAppointments[index],
+                        doctorAppointments[index],
                       )
                     : null,
               ),
@@ -339,14 +366,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAppointmentChatCard(Appointment appointment) {
-    final start = appointment.startTime;
-    final end = appointment.endTime;
-    final isPast = start.isBefore(DateTime.now());
+    final start = appointment.startTime.toLocal();
+    final end = appointment.endTime.toLocal();
+    final now = DateTime.now();
+    final isPast = end.isBefore(DateTime.now());
     final status = appointment.status.toLowerCase();
     final canChat = status == 'confirmed' || status == 'completed';
     final doctorName =
         appointment.doctor?.specialization ?? 'Doctor Consultation';
     final location = appointment.doctor?.city ?? '––';
+    final relativeLabel = _relativeTimeLabel(start, end);
+    final isInSession = now.isAfter(start) && now.isBefore(end);
+    final Color timingColor = isInSession
+        ? AppColors.teal
+        : (now.isBefore(start) ? Colors.orange : Colors.grey);
 
     final buttonLabel = canChat
         ? 'Open chat for this appointment'
@@ -357,7 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(7),
         color: Colors.white,
         boxShadow: const [
           BoxShadow(
@@ -375,7 +408,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               gradient: _homeHeroGradient,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
             ),
             child: Row(
               children: [
@@ -398,8 +431,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Text(
                         doctorName,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
@@ -421,7 +454,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.22),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(7),
                   ),
                   child: Text(
                     appointment.status,
@@ -460,6 +493,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
+                    Icon(Icons.schedule_rounded, size: 18, color: timingColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        relativeLabel,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: timingColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
                     const Icon(
                       Icons.location_on_outlined,
                       size: 18,
@@ -485,11 +535,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      disabledForegroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade200,
+                      disabledForegroundColor: Colors.black54,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     ),
                     icon: const Icon(
@@ -508,6 +558,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _openChatForAppointment(Appointment appointment) {
+    final now = DateTime.now();
+    final startTime = appointment.startTime.toLocal();
+
+    if (now.isBefore(startTime)) {
+      final timeUntilStart = startTime.difference(now);
+      final minutes = timeUntilStart.inMinutes;
+      final hours = timeUntilStart.inHours;
+
+      String message;
+      if (hours > 0) {
+        message =
+            'Chat will open in $hours hour${hours > 1 ? 's' : ''} and $minutes minute${minutes != 1 ? 's' : ''}';
+      } else {
+        message = 'Chat will open in $minutes minute${minutes != 1 ? 's' : ''}';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+      );
+      return;
+    }
+
     context.pushNamed(
       RouteConstants.chatScreen,
       extra: ChatScreenArgs(appointmentId: appointment.id),
@@ -515,6 +587,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _openChatForDoctorAppointment(DoctorAppointmentSummary appointment) {
+    final now = DateTime.now();
+    final startTime = appointment.startTime.toLocal();
+
+    if (now.isBefore(startTime)) {
+      final timeUntilStart = startTime.difference(now);
+      final minutes = timeUntilStart.inMinutes;
+      final hours = timeUntilStart.inHours;
+
+      String message;
+      if (hours > 0) {
+        message =
+            'Chat will open in $hours hour${hours > 1 ? 's' : ''} and $minutes minute${minutes != 1 ? 's' : ''}';
+      } else {
+        message = 'Chat will open in $minutes minute${minutes != 1 ? 's' : ''}';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+      );
+      return;
+    }
+
     context.pushNamed(
       RouteConstants.chatScreen,
       extra: ChatScreenArgs(appointmentId: appointment.id),
@@ -526,7 +620,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.teal.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(7),
       ),
       child: Row(
         children: [
@@ -697,21 +791,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
+    final previewAppointments =
+        _sortedPatientAppointments().take(3).toList(growable: false);
+    final hasMore = _appointments.length > previewAppointments.length;
+
     return _SectionCard(
       title: 'Your Appointments',
       child: Column(
         children: [
-          ..._appointments.map((appointment) {
-            return _AppointmentTile(appointment: appointment);
-          }),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
-                context.pushNamed(RouteConstants.topDoctorsScreen);
-              },
-              child: const Text('Book another appointment'),
-            ),
+          ...previewAppointments
+              .map((appointment) => _AppointmentTile(appointment: appointment)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (hasMore)
+                TextButton(
+                  onPressed: () {
+                    final controller = DefaultTabController.of(context);
+                    controller?.animateTo(1);
+                  },
+                  child: const Text('View all appointments'),
+                ),
+              if (!hasMore) const SizedBox.shrink(),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  context.pushNamed(RouteConstants.topDoctorsScreen);
+                },
+                child: const Text('Book another appointment'),
+              ),
+            ],
           ),
         ],
       ),
@@ -771,6 +880,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Column(children: tiles);
   }
+
+  List<Appointment> _sortedPatientAppointments() {
+    final list = List<Appointment>.from(_appointments);
+    list.sort(
+      (a, b) => _compareScheduleWindows(
+        a.startTime,
+        a.endTime,
+        a.status,
+        b.startTime,
+        b.endTime,
+        b.status,
+      ),
+    );
+    return list;
+  }
+
+  List<DoctorAppointmentSummary> _sortedDoctorAppointments() {
+    final list = List<DoctorAppointmentSummary>.from(_doctorAppointments);
+    list.sort(
+      (a, b) => _compareScheduleWindows(
+        a.startTime,
+        a.endTime,
+        a.status,
+        b.startTime,
+        b.endTime,
+        b.status,
+      ),
+    );
+    return list;
+  }
+
+  int _compareScheduleWindows(
+    DateTime aStart,
+    DateTime aEnd,
+    String aStatus,
+    DateTime bStart,
+    DateTime bEnd,
+    String bStatus,
+  ) {
+    final now = DateTime.now();
+    final priorityA = _priorityBucket(aStart, aEnd, aStatus, now);
+    final priorityB = _priorityBucket(bStart, bEnd, bStatus, now);
+
+    if (priorityA != priorityB) {
+      return priorityA.compareTo(priorityB);
+    }
+
+    final startCompare = aStart.compareTo(bStart);
+    if (startCompare != 0) {
+      return startCompare;
+    }
+
+    return aEnd.compareTo(bEnd);
+  }
+
+  int _priorityBucket(
+    DateTime start,
+    DateTime end,
+    String status,
+    DateTime now,
+  ) {
+    final lower = status.toLowerCase();
+    final chatReady = _isChatEligibleStatus(lower);
+    final bool inWindow = now.isAfter(start) && now.isBefore(end);
+
+    if (inWindow) {
+      return chatReady ? 0 : 1;
+    }
+
+    if (now.isBefore(start)) {
+      return chatReady ? 2 : 3;
+    }
+
+    return 4;
+  }
+
+  bool _isChatEligibleStatus(String status) {
+    final normalized = status.toLowerCase();
+    return normalized == 'confirmed' || normalized == 'completed';
+  }
 }
 
 class _ProfileTile extends StatelessWidget {
@@ -802,7 +991,7 @@ class _ProfileTile extends StatelessWidget {
           width: 42,
           decoration: BoxDecoration(
             color: iconBg,
-            borderRadius: BorderRadius.circular(21),
+            borderRadius: BorderRadius.circular(7),
           ),
           child: Icon(icon, size: 22, color: Colors.black54),
         ),
@@ -842,7 +1031,7 @@ class _ProfileStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: const Color(0xFFE7ECF3)),
         boxShadow: [
           BoxShadow(
@@ -858,7 +1047,7 @@ class _ProfileStatCard extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: AppColors.teal.withOpacity(.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(7),
             ),
             child: Icon(icon, color: AppColors.teal),
           ),
@@ -899,7 +1088,7 @@ class _SectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(7),
         border: Border.all(color: const Color(0xFFE7ECF3)),
         boxShadow: [
           BoxShadow(
@@ -914,7 +1103,7 @@ class _SectionCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           child,
@@ -933,11 +1122,11 @@ class _AppointmentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final doctorName = appointment.doctor?.specialization ?? 'Doctor';
     final city = appointment.doctor?.city ?? '';
-    final start = appointment.startTime;
-    final end = appointment.endTime;
+    final start = appointment.startTime.toLocal();
+    final end = appointment.endTime.toLocal();
     final now = DateTime.now();
     final statusLower = appointment.status.toLowerCase();
-    final isPast = start.isBefore(now);
+    final isPast = end.isBefore(now);
     final isMissed =
         isPast && !['completed', 'cancelled'].contains(statusLower);
     final displayStatus = isMissed ? 'Missed' : appointment.status;
@@ -945,76 +1134,130 @@ class _AppointmentTile extends StatelessWidget {
         ? Colors.redAccent
         : _statusColor(appointment.status);
 
+    final relativeLabel = _relativeTimeLabel(start, end);
+    final isInSession = now.isAfter(start) && now.isBefore(end);
+    final timingColor = isInSession
+        ? AppColors.teal
+        : (now.isBefore(start) ? Colors.orange : Colors.grey);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.teal.withOpacity(.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(Icons.medical_services, color: AppColors.teal),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(7),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Dr. $doctorName',
-                  style: const TextStyle(
-                    fontSize: 14,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.teal.withOpacity(.12),
+                child: const Icon(
+                  Icons.medical_services,
+                  color: AppColors.teal,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dr. $doctorName',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    if (city.isNotEmpty)
+                      Text(
+                        city,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  displayStatus,
+                  style: TextStyle(
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
+                    color: statusColor,
                   ),
                 ),
-                if (city.isNotEmpty)
-                  Text(
-                    city,
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(Icons.schedule_rounded, size: 16, color: timingColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  relativeLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: timingColor,
                   ),
-                const SizedBox(height: 4),
-                Text(
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(
+                Icons.calendar_month_outlined,
+                size: 16,
+                color: Colors.black38,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
                   '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
                   style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
-                if (isMissed)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 4),
-                    child: Text(
-                      'This appointment was missed',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(.1),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              displayStatus,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: statusColor,
+          if (isMissed)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'This appointment was missed',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -1034,11 +1277,19 @@ class _DoctorAppointmentCard extends StatelessWidget {
     final buttonLabel = appointment.canChat
         ? 'Open chat with patient'
         : 'Chat available once confirmed';
+    final start = appointment.startTime.toLocal();
+    final end = appointment.endTime.toLocal();
+    final relativeLabel = _relativeTimeLabel(start, end);
+    final now = DateTime.now();
+    final bool isInSession = now.isAfter(start) && now.isBefore(end);
+    final Color timingColor = isInSession
+        ? AppColors.teal
+        : (now.isBefore(start) ? Colors.orange : Colors.grey);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(7),
         color: Colors.white,
         boxShadow: const [
           BoxShadow(
@@ -1056,7 +1307,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               gradient: _homeHeroGradient,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
             ),
             child: Row(
               children: [
@@ -1079,8 +1330,8 @@ class _DoctorAppointmentCard extends StatelessWidget {
                       Text(
                         patientName,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
@@ -1130,10 +1381,27 @@ class _DoctorAppointmentCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${_formatDate(appointment.startTime)} · ${_formatTime(appointment.startTime)} - ${_formatTime(appointment.endTime)}',
+                      '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
                       style: const TextStyle(
                         fontSize: 13,
                         color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.schedule_rounded, size: 18, color: timingColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        relativeLabel,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: timingColor,
+                        ),
                       ),
                     ),
                   ],
@@ -1158,11 +1426,11 @@ class _DoctorAppointmentCard extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      disabledForegroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade200,
+                      disabledForegroundColor: Colors.black45,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     ),
                     icon: const Icon(
@@ -1181,14 +1449,50 @@ class _DoctorAppointmentCard extends StatelessWidget {
   }
 }
 
+String _relativeTimeLabel(DateTime start, DateTime end) {
+  final now = DateTime.now();
+  if (now.isBefore(start)) {
+    return 'Starts in ${_readableDuration(start.difference(now))}';
+  }
+  if (now.isAfter(end)) {
+    return 'Ended ${_readableDuration(now.difference(end))} ago';
+  }
+  return 'Ends in ${_readableDuration(end.difference(now))}';
+}
+
+String _readableDuration(Duration duration) {
+  final d = duration.abs();
+  if (d.inDays >= 1) {
+    final days = d.inDays;
+    final hours = d.inHours.remainder(24);
+    if (hours == 0) return '${days}d';
+    return '${days}d ${hours}h';
+  }
+  if (d.inHours >= 1) {
+    final hours = d.inHours;
+    final minutes = d.inMinutes.remainder(60);
+    if (minutes == 0) return '${hours}h';
+    return '${hours}h ${minutes}m';
+  }
+  if (d.inMinutes >= 1) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds.remainder(60);
+    if (seconds == 0) return '${minutes}m';
+    return '${minutes}m ${seconds}s';
+  }
+  return '${d.inSeconds}s';
+}
+
 String _formatDate(DateTime date) {
-  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  final local = date.toLocal();
+  return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}';
 }
 
 String _formatTime(DateTime date) {
-  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-  final minute = date.minute.toString().padLeft(2, '0');
-  final period = date.hour >= 12 ? 'PM' : 'AM';
+  final local = date.toLocal();
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final period = local.hour >= 12 ? 'PM' : 'AM';
   return '$hour:$minute $period';
 }
 

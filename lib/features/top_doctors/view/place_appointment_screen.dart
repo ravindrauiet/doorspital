@@ -30,12 +30,12 @@ class PlaceAppointmentScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
                         color: AppColors.grey.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(5.0),
                       ),
                       child: Row(
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(5.0),
                             child: Image.asset(
                               Images.doctor, // replace with your image path
                               height: 115,
@@ -73,9 +73,10 @@ class PlaceAppointmentScreen extends StatelessWidget {
                                       ),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(5.0),
                                       ),
                                       child: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: const [
                                           Icon(
                                             Icons.star,
@@ -156,7 +157,6 @@ class PlaceAppointmentScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     _infoRow('Duration', '30minutes'),
 
-                    const SizedBox(height: 24),
 
                     // PATIENT INFORMATION
                     const Text(
@@ -183,14 +183,13 @@ class PlaceAppointmentScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: CustomElevatedButton(
-                borderRadius: 50,
-
-                width: double.infinity,
-                height: 54,
                 label: 'Pay 12',
                 onPressed: () {
                   context.pushNamed(RouteConstants.paymentSuccessScreen);
                 },
+                borderRadius: 5.0,
+                width: double.infinity,
+                height: 54,
               ),
             ),
           ],
