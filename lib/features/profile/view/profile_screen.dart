@@ -106,7 +106,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (response.success && response.data != null) {
         final sorted = List<DoctorAppointmentSummary>.from(response.data!);
-        sorted.sort((a, b) => a.startTime.compareTo(b.startTime));
+        // Sort by nearest time first (upcoming first, then past)
+        final now = DateTime.now();
+        sorted.sort((a, b) {
+          final aStart = a.startTime.toLocal();
+          final bStart = b.startTime.toLocal();
+          final aIsUpcoming = aStart.isAfter(now);
+          final bIsUpcoming = bStart.isAfter(now);
+          
+          if (aIsUpcoming != bIsUpcoming) {
+            return aIsUpcoming ? -1 : 1; // Upcoming first
+          }
+          
+          if (aIsUpcoming) {
+            return aStart.compareTo(bStart); // Nearest first for upcoming
+          } else {
+            return bStart.compareTo(aStart); // Newest first for past
+          }
+        });
         setState(() {
           _doctorAppointments = sorted;
           _appointments = [];
@@ -353,14 +370,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               itemCount: doctorAppointments.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) => _DoctorAppointmentCard(
-                appointment: doctorAppointments[index],
-                onChat: doctorAppointments[index].canChat
-                    ? () => _openChatForDoctorAppointment(
-                        doctorAppointments[index],
-                      )
-                    : null,
-              ),
+              itemBuilder: (context, index) {
+                final appointment = doctorAppointments[index];
+                return _DoctorAppointmentCard(
+                  appointment: appointment,
+                  relativeLabel: _relativeTimeLabel(
+                    appointment.startTime.toLocal(),
+                    appointment.endTime.toLocal(),
+                  ),
+                  timingColor: _getTimingColor(
+                    appointment.startTime.toLocal(),
+                    appointment.endTime.toLocal(),
+                  ),
+                  onChat: appointment.canChat
+                      ? () => _openChatForDoctorAppointment(appointment)
+                      : null,
+                );
+              },
             ),
     );
   }
@@ -1267,8 +1293,15 @@ class _AppointmentTile extends StatelessWidget {
 class _DoctorAppointmentCard extends StatelessWidget {
   final DoctorAppointmentSummary appointment;
   final VoidCallback? onChat;
+  final String relativeLabel;
+  final Color timingColor;
 
-  const _DoctorAppointmentCard({required this.appointment, this.onChat});
+  const _DoctorAppointmentCard({
+    required this.appointment,
+    this.onChat,
+    required this.relativeLabel,
+    required this.timingColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1279,12 +1312,6 @@ class _DoctorAppointmentCard extends StatelessWidget {
         : 'Chat available once confirmed';
     final start = appointment.startTime.toLocal();
     final end = appointment.endTime.toLocal();
-    final relativeLabel = _relativeTimeLabel(start, end);
-    final now = DateTime.now();
-    final bool isInSession = now.isAfter(start) && now.isBefore(end);
-    final Color timingColor = isInSession
-        ? AppColors.teal
-        : (now.isBefore(start) ? Colors.orange : Colors.grey);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1494,6 +1521,21 @@ String _formatTime(DateTime date) {
   final minute = local.minute.toString().padLeft(2, '0');
   final period = local.hour >= 12 ? 'PM' : 'AM';
   return '$hour:$minute $period';
+}
+
+Color _getTimingColor(DateTime start, DateTime end) {
+  final now = DateTime.now();
+  if (now.isBefore(start)) {
+    return Colors.orange; // Upcoming
+  } else if (now.isBefore(end)) {
+    final diff = end.difference(now);
+    if (diff.inMinutes <= 1) {
+      return Colors.redAccent; // Last minute warning
+    }
+    return AppColors.teal; // Active
+  } else {
+    return Colors.grey; // Ended
+  }
 }
 
 Color _statusColor(String status) {
