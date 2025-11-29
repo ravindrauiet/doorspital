@@ -33,6 +33,7 @@ class DoctorSignUpRequest {
 
 class Doctor {
   final String id;
+  final String? name;
   final String specialization;
   final int? experienceYears;
   final double? consultationFee;
@@ -42,6 +43,7 @@ class Doctor {
 
   Doctor({
     required this.id,
+    this.name,
     required this.specialization,
     this.experienceYears,
     this.consultationFee,
@@ -51,8 +53,31 @@ class Doctor {
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
+    String? resolveName(Map<String, dynamic> j) {
+      // First try direct name fields
+      if (j['name'] != null) return j['name'] as String;
+      if (j['fullName'] != null) return j['fullName'] as String;
+      
+      // Try extracted doctorName from API enrichment
+      if (j['doctorName'] != null) return j['doctorName'] as String;
+      
+      // Try user object (could be full object or just ID)
+      if (j['user'] is Map) {
+        final userMap = j['user'] as Map<String, dynamic>;
+        if (userMap['userName'] != null) return userMap['userName'] as String;
+        if (userMap['name'] != null) return userMap['name'] as String;
+      }
+      
+      // Try firstName + lastName
+      if (j['firstName'] != null) {
+        final last = j['lastName'] as String?;
+        return last != null ? '${j['firstName']} $last' : j['firstName'] as String;
+      }
+      return null;
+    }
     return Doctor(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      name: resolveName(json),
       specialization: json['specialization'] ?? '',
       experienceYears: json['experienceYears'],
       consultationFee: json['consultationFee']?.toDouble(),

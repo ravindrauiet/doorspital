@@ -80,8 +80,13 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   Future<void> _loadAvailability() async {
     if (widget.doctorId == null) return;
 
-    final provider = context.read<DoctorAvailabilityProvider>();
-    provider.setLoading(true);
+    // Defer provider notification until after build phase
+    Future.microtask(() {
+      if (mounted) {
+        final provider = context.read<DoctorAvailabilityProvider>();
+        provider.setLoading(true);
+      }
+    });
 
     try {
       // Get availability for next 7 days
@@ -93,6 +98,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       );
 
       if (mounted) {
+        final provider = context.read<DoctorAvailabilityProvider>();
         if (response.success && response.data != null) {
           provider.setAvailability(response.data!);
         } else {
@@ -101,10 +107,12 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final provider = context.read<DoctorAvailabilityProvider>();
         provider.setError('Error loading availability: $e');
       }
     } finally {
       if (mounted) {
+        final provider = context.read<DoctorAvailabilityProvider>();
         provider.setLoading(false);
       }
     }
@@ -364,7 +372,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Dr. ${_doctor!.specialization}',
+                        _doctor!.name != null && _doctor!.name!.isNotEmpty
+                            ? '${_doctor!.name}'
+                            : 'Dr. ${_doctor!.specialization}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,

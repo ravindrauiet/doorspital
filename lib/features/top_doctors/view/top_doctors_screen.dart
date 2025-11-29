@@ -193,7 +193,13 @@ class DoctorCard extends StatelessWidget {
     this.onTap,
   });
 
-  String get _displayName => 'Dr. ${doctor.specialization}';
+  String get _displayName {
+    if (doctor.name != null && doctor.name!.isNotEmpty) {
+      return '${doctor.name}';
+    }
+    // If name is missing, show a placeholder instead of specialization
+    return 'Dr. (Name not available)';
+  }
   String get _specialty => doctor.specialization;
   String get _imageUrl =>
       'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=800';
