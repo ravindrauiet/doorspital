@@ -80,3 +80,4 @@ class NotificationsResult {
   NotificationsResult({required this.notifications, this.pagination});
 }
 
+

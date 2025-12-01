@@ -12,6 +12,7 @@ import 'package:door/features/top_doctors/provider/select_consultation_provider.
 import 'package:door/routes/route_config.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/services/auth_service.dart';
+import 'package:door/services/local_notification_manager.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +22,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize local notifications
+  final notificationManager = LocalNotificationManager();
+  await notificationManager.initialize();
+  
   runApp(const MyApp());
 }
 
@@ -34,13 +40,30 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   GoRouter? _router;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeRouter();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final notificationManager = LocalNotificationManager();
+    
+    if (state == AppLifecycleState.resumed) {
+      // App came to foreground - check for notifications immediately
+      notificationManager.checkNow();
+    }
   }
 
   Future<void> _initializeRouter() async {
@@ -58,6 +81,15 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _router = createRouter(initialLocation);
     });
+
+    // Set router for notification manager and start polling
+    final notificationManager = LocalNotificationManager();
+    notificationManager.setRouter(_router!);
+    
+    if (isAuthenticated) {
+      // Start polling for new notifications every 30 seconds
+      notificationManager.startPolling(interval: const Duration(seconds: 30));
+    }
   }
 
   @override

@@ -98,13 +98,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     if (_isDoctor) {
+      // Fetch all appointments (no range filter) so doctor can see all appointments and chat with any patient
       final response = await _appointmentService.getDoctorAppointments(
-        range: 'upcoming',
-        limit: 20,
+        limit: 50, // Increased limit to show more appointments
       );
       if (!mounted) return;
 
       if (response.success && response.data != null) {
+        print('✅ Loaded ${response.data!.length} doctor appointments');
         final sorted = List<DoctorAppointmentSummary>.from(response.data!);
         // Sort by nearest time first (upcoming first, then past)
         final now = DateTime.now();
@@ -130,6 +131,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _loadingAppointments = false;
         });
       } else {
+        print('❌ Failed to load doctor appointments: ${response.message}');
+        print('Response: ${response.toString()}');
         setState(() {
           _doctorAppointments = [];
           _appointmentsError =
