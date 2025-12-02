@@ -21,4 +21,6 @@ class RouteConstants {
   static const chatListScreen = "/chat-list-screen";
   static const chatScreen = "/chat-screen";
   static const chatImagePreviewScreen = "/chat-image-preview-screen";
+  static const articlesListScreen = "/articles-list-screen";
+  static const articleDetailScreen = "/article-detail-screen";
 }

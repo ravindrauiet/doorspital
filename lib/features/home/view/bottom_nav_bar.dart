@@ -1,6 +1,7 @@
 import 'package:door/features/home/view/home_screen.dart';
 import 'package:door/features/notificatoins/view/notifications_screen.dart';
 import 'package:door/features/profile/view/profile_screen.dart';
+import 'package:door/features/pharmacy/view/pharmacy_home_screen.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,7 @@ class BottomNavBar extends StatelessWidget {
       builder: (context, provider, child) {
         final List<Widget> pages = [
           HomeScreen(),
-          // PharmacyHomeScreen(),
+          PharmacyHomeScreen(),
           NotificationsScreen(),
           ProfileScreen(),
         ];
@@ -32,13 +33,13 @@ class BottomNavBar extends StatelessWidget {
                 icon: Icon(CupertinoIcons.home),
                 label: 'Home',
               ),
-              // BottomNavigationBarItem(
-              //   icon: Icon(CupertinoIcons.doc_text),
-              //   label: 'Reports',
-              // ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.assignment_outlined),
+                label: 'Service',
+              ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.notifications_active_outlined),
-                label: 'Notification',
+                label: 'Booking',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.account_circle_outlined),

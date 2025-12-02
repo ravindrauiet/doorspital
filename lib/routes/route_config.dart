@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:door/features/articles/view/article_detail_screen.dart';
+import 'package:door/features/articles/view/articles_list_screen.dart';
 import 'package:door/features/cart/view/cart_screen.dart';
 import 'package:door/features/chat/view/chat_image_preview_screen.dart';
 import 'package:door/features/chat/view/chat_list_screen.dart';
@@ -145,6 +147,19 @@ GoRouter createRouter(String initialLocation) {
         builder: (context, state) {
           final file = state.extra as File;
           return ChatImagePreviewScreen(image: file);
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.articlesListScreen,
+        name: RouteConstants.articlesListScreen,
+        builder: (context, state) => const ArticlesListScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.articleDetailScreen,
+        name: RouteConstants.articleDetailScreen,
+        builder: (context, state) {
+          final article = state.extra as Map<String, String>;
+          return ArticleDetailScreen(article: article);
         },
       ),
     ],
