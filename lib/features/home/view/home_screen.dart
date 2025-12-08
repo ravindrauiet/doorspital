@@ -1,4 +1,6 @@
 import 'package:door/features/home/components/quick_action_button.dart';
+import 'package:door/services/article_service.dart';
+import 'package:door/services/models/article_model.dart';
 import 'package:door/features/home/components/article_card.dart';
 import 'package:door/features/home/components/home_search_feild.dart';
 import 'package:door/routes/route_constants.dart';
@@ -17,20 +19,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
+  final _articleService = ArticleService();
   String _userName = 'User';
   bool _loading = true;
+  List<Article> _articles = [];
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadData();
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> _loadData() async {
     final user = await _authService.getCurrentUser();
+    final articleResponse = await _articleService.getArticles();
+    
     if (mounted) {
       setState(() {
         _userName = user?.userName ?? 'User';
+        if (articleResponse.success && articleResponse.data != null) {
+          _articles = articleResponse.data!;
+        }
         _loading = false;
       });
     }
@@ -294,65 +303,73 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ),
                                   ),
-                                  // Left side text
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 18,
-                                      vertical: 20,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Text(
-                                          'Stay on top of your health',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                    // Left side text
+                                    Positioned(
+                                      left: 0,
+                                      top: 0,
+                                      bottom: 0,
+                                      right: 140, // Constraint to avoid image overlap
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                          vertical: 20,
                                         ),
-                                        const SizedBox(height: 6),
-                                        const Text(
-                                          'Book doorstep services, video consults\nand get medicines delivered fast.',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 14),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: const [
-                                              Icon(
-                                                Icons.calendar_today_outlined,
-                                                size: 16,
-                                                color: Color(0xFF2F49D0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Text(
+                                              'Stay on top of your health',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
                                               ),
-                                              SizedBox(width: 6),
-                                              Text(
-                                                'Book appointment now',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Color(0xFF2F49D0),
-                                                ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            const Text(
+                                              'Book doorstep services, video, medicines.',
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 13,
                                               ),
-                                            ],
-                                          ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 3,
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 14,
+                                                vertical: 8,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: const [
+                                                  Icon(
+                                                    Icons.calendar_today_outlined,
+                                                    size: 16,
+                                                    color: Color(0xFF2F49D0),
+                                                  ),
+                                                  SizedBox(width: 6),
+                                                  Text(
+                                                    'Book Now',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Color(0xFF2F49D0),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -386,54 +403,32 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          GestureDetector(
-                            onTap: () {
-                              context.pushNamed(
-                                RouteConstants.articleDetailScreen,
-                                extra: {
-                                  'thumbnail': 'assets/delivery.png',
-                                  'title':
-                                      'The 25 Healthiest Fruits You Can Eat, According to a Nutritionist',
-                                  'date': 'Jun 10, 2023',
-                                  'readTime': '5 min read',
-                                  'content':
-                                      'Fruits are an excellent source of essential vitamins and minerals, and they are high in fiber. Fruits also provide a wide range of health-boosting antioxidants, including flavonoids. Eating a diet high in fruits and vegetables can reduce a person\'s risk of developing heart disease, cancer, inflammation, and diabetes.',
-                                },
-                              );
-                            },
-                            child: const ArticleCard(
-                              thumbnail: 'assets/delivery.png',
-                              title:
-                                  'The 25 Healthiest Fruits You Can Eat, According to a Nutritionist',
-                              date: 'Jun 10, 2023',
-                              readTime: '5 min read',
+                          ..._articles.take(2).map((article) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: ArticleCard(
+                                  onTap: () {
+                                    context.pushNamed(
+                                      RouteConstants.articleDetailScreen,
+                                      extra: {
+                                        'thumbnail': article.image,
+                                        'title': article.title,
+                                        'date': article.date,
+                                        'readTime': article.time,
+                                        'content': 'Content fetching not implemented in detail screen yet',
+                                      },
+                                    );
+                                  },
+                                  thumbnail: article.image.isNotEmpty ? article.image : 'assets/delivery.png', // Fallback if empty, though unlikely if required
+                                  title: article.title,
+                                  date: article.date,
+                                  readTime: article.time,
+                                ),
+                              )),
+                          if (_articles.isEmpty && !_loading)
+                            const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text('No articles found'),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          GestureDetector(
-                            onTap: () {
-                              context.pushNamed(
-                                RouteConstants.articleDetailScreen,
-                                extra: {
-                                  'thumbnail': 'assets/delivery.png',
-                                  'title':
-                                      'The impact of COVID-19 on Healthcare Systems',
-                                  'date': 'Jun 11, 2023',
-                                  'readTime': '3 min read',
-                                  'content':
-                                      'The COVID-19 pandemic has had a profound impact on healthcare systems worldwide. Hospitals have been overwhelmed, healthcare workers have faced unprecedented challenges, and patients have had to adapt to new ways of receiving care. This article explores the long-term effects and lessons learned.',
-                                },
-                              );
-                            },
-                            child: const ArticleCard(
-                              thumbnail: 'assets/delivery.png',
-                              title:
-                                  'The impact of COVID-19 on Healthcare Systems',
-                              date: 'Jun 11, 2023',
-                              readTime: '3 min read',
-                            ),
-                          ),
                         ],
                       ),
                     ),

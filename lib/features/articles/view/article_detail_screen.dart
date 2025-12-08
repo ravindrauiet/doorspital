@@ -47,12 +47,31 @@ class ArticleDetailScreen extends StatelessWidget {
           children: [
             // Article Image
             ClipRRect(
-              child: Image.asset(
-                article['thumbnail']!,
-                width: double.infinity,
-                height: 250,
-                fit: BoxFit.cover,
-              ),
+              child: article['thumbnail']!.startsWith('http') || article['thumbnail']!.startsWith('https')
+                  ? Image.network(
+                      article['thumbnail']!,
+                      width: double.infinity,
+                      height: 250,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: double.infinity,
+                        height: 250,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                      ),
+                    )
+                  : Image.asset(
+                      article['thumbnail']!,
+                      width: double.infinity,
+                      height: 250,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: double.infinity,
+                        height: 250,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                      ),
+                    ),
             ),
             // Article Content
             Padding(

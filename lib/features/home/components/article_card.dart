@@ -5,6 +5,7 @@ class ArticleCard extends StatelessWidget {
   final String title;
   final String date;
   final String readTime;
+  final VoidCallback? onTap;
 
   const ArticleCard({
     super.key,
@@ -12,6 +13,7 @@ class ArticleCard extends StatelessWidget {
     required this.title,
     required this.date,
     required this.readTime,
+    this.onTap,
   });
 
   @override
@@ -26,9 +28,7 @@ class ArticleCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () {
-            // Navigation is handled by parent GestureDetector
-          },
+          onTap: onTap,
           child: Stack(
             children: [
               Row(
@@ -37,12 +37,31 @@ class ArticleCard extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        thumbnail,
-                        width: 90,
-                        height: 70,
-                        fit: BoxFit.cover,
-                      ),
+                      child: thumbnail.startsWith('http') || thumbnail.startsWith('https')
+                          ? Image.network(
+                              thumbnail,
+                              width: 90,
+                              height: 70,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                width: 90,
+                                height: 70,
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.broken_image, size: 24, color: Colors.grey),
+                              ),
+                            )
+                          : Image.asset(
+                              thumbnail,
+                              width: 90,
+                              height: 70,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                width: 90,
+                                height: 70,
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.image, size: 24, color: Colors.grey),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),

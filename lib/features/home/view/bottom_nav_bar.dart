@@ -1,3 +1,4 @@
+import 'package:door/features/articles/view/articles_list_screen.dart';
 import 'package:door/features/home/view/home_screen.dart';
 import 'package:door/features/notificatoins/view/notifications_screen.dart';
 import 'package:door/features/profile/view/profile_screen.dart';
@@ -20,7 +21,7 @@ class BottomNavBar extends StatelessWidget {
       builder: (context, provider, child) {
         final List<Widget> pages = [
           HomeScreen(),
-          PharmacyHomeScreen(),
+          ArticlesListScreen(),
           NotificationsScreen(),
           ProfileScreen(),
         ];
@@ -34,8 +35,8 @@ class BottomNavBar extends StatelessWidget {
                 label: 'Home',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.assignment_outlined),
-                label: 'Service',
+                icon: Icon(Icons.article_outlined),
+                label: 'Health Tip',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.notifications_active_outlined),
