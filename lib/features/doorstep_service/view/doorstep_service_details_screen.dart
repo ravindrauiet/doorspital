@@ -1,5 +1,7 @@
 import 'package:door/features/doorstep_service/models/doorstep_service_model.dart';
 import 'package:door/features/doorstep_service/services/doorstep_service_api.dart';
+import 'package:door/services/doctor_service.dart';
+import 'package:door/services/models/doctor_models.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,9 +19,10 @@ class DoorstepServiceDetailsScreen extends StatefulWidget {
 class _DoorstepServiceDetailsScreenState
     extends State<DoorstepServiceDetailsScreen> {
   final DoorstepServiceApi _api = DoorstepServiceApi();
+  final DoctorService _doctorService = DoctorService();
   bool _isLoading = true;
   DoorstepServiceDetail? _serviceDetail;
-  List<Specialist> _specialists = [];
+  List<Doctor> _specialists = [];
 
   @override
   void initState() {
@@ -30,11 +33,14 @@ class _DoorstepServiceDetailsScreenState
   Future<void> _fetchData() async {
     try {
       final details = await _api.getServiceDetails(widget.serviceId);
-      final specialists = await _api.getSpecialists(widget.serviceId);
+      final doctorResponse = await _doctorService.getTopDoctors(); // Fetch all/top doctors
+      
       if (mounted) {
         setState(() {
           _serviceDetail = details;
-          _specialists = specialists;
+          if (doctorResponse.success && doctorResponse.data != null) {
+            _specialists = doctorResponse.data!;
+          }
           _isLoading = false;
         });
       }
@@ -233,6 +239,9 @@ class _DoorstepServiceDetailsScreenState
                           separatorBuilder: (context, index) => const SizedBox(width: 16),
                           itemBuilder: (context, index) {
                             final specialist = _specialists[index];
+                            final name = specialist.name ?? 'Doctor';
+                            final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
+
                             return Container(
                               width: 230,
                               padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
@@ -252,11 +261,19 @@ class _DoorstepServiceDetailsScreenState
                                 children: [
                                   CircleAvatar(
                                     radius: 45,
-                                    backgroundImage: AssetImage(specialist.imageUrl),
+                                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                                    child: Text(
+                                      initial,
+                                      style: const TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    specialist.name,
+                                    name,
                                     textAlign: TextAlign.center,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -269,7 +286,7 @@ class _DoorstepServiceDetailsScreenState
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    '${specialist.experienceYears}+ years',
+                                    '${specialist.experienceYears ?? 0}+ years',
                                      style: const TextStyle(
                                       fontSize: 13,
                                       color: Color(0xFF757575),
@@ -280,9 +297,8 @@ class _DoorstepServiceDetailsScreenState
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      _Tag(text: specialist.specialty),
-                                      const SizedBox(width: 8),
-                                      _Tag(text: specialist.subSpecialty),
+                                      _Tag(text: specialist.specialization),
+                                      
                                     ],
                                   ),
                                   const SizedBox(height: 12),
@@ -292,7 +308,7 @@ class _DoorstepServiceDetailsScreenState
                                        const Icon(Icons.star_rounded, color: Color(0xFFFFC107), size: 18),
                                        const SizedBox(width: 6),
                                        Text(
-                                        '${specialist.rating}',
+                                        '4.5', // Default rating as Doctor model doesn't have it yet
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold, 
                                           fontSize: 14, 
@@ -310,11 +326,12 @@ class _DoorstepServiceDetailsScreenState
                                          context.pushNamed(
                                            RouteConstants.doorstepSpecialistDetailsScreen,
                                            extra: {
-                                             'name': specialist.name,
-                                             'specialization': specialist.specialty,
-                                             'experienceYears': '${specialist.experienceYears}',
-                                             'rating': specialist.rating,
-                                             'imageUrl': specialist.imageUrl,
+                                             'id': specialist.id,
+                                             'name': name,
+                                             'specialization': specialist.specialization,
+                                             'experienceYears': '${specialist.experienceYears ?? 0}',
+                                             'rating': 4.5,
+                                             // No image URL passed, handled by fallback in next screen too if needed
                                            }
                                          );
                                       },

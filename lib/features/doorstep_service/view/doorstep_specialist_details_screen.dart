@@ -1,6 +1,8 @@
 import 'package:door/features/components/custom_elevated_button.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:door/routes/route_constants.dart';
 
 class DoorstepSpecialistDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> specialistData;
@@ -79,7 +81,10 @@ class DoorstepSpecialistDetailsScreen extends StatelessWidget {
                   height: 52,
                   child: ElevatedButton(
                     onPressed: () {
-                         // Booking Logic
+                         context.pushNamed(
+                           RouteConstants.doctorDetailsScreen,
+                           extra: specialistData['id'],
+                         );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2C49C6),
@@ -121,11 +126,24 @@ class DoorstepSpecialistDetailsScreen extends StatelessWidget {
                    shape: BoxShape.circle,
                    border: Border.all(color: Colors.white, width: 4), 
                   ),
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundImage: image is String ? NetworkImage(image) : (image as ImageProvider?),
-                    onBackgroundImageError: (_,__) {},
-                  ),
+                  child: image != null && image.toString().isNotEmpty
+                      ? CircleAvatar(
+                          radius: 60,
+                          backgroundImage: image is String ? NetworkImage(image) : (image as ImageProvider?),
+                          onBackgroundImageError: (_,__) {},
+                        )
+                      : CircleAvatar(
+                          radius: 60,
+                          backgroundColor: const Color(0xFFEEF0FA),
+                          child: Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : 'D',
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2C49C6),
+                            ),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 16),
