@@ -2,6 +2,8 @@ import 'package:door/features/doorstep_service/models/doorstep_service_model.dar
 import 'package:door/features/doorstep_service/services/doorstep_service_api.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:door/routes/route_constants.dart';
 
 class DoorstepServiceDetailsScreen extends StatefulWidget {
   final String serviceId;
@@ -304,7 +306,18 @@ class _DoorstepServiceDetailsScreenState
                                     width: double.infinity,
                                     height: 48,
                                     child: ElevatedButton(
-                                      onPressed: () {},
+                                      onPressed: () {
+                                         context.pushNamed(
+                                           RouteConstants.doorstepSpecialistDetailsScreen,
+                                           extra: {
+                                             'name': specialist.name,
+                                             'specialization': specialist.specialty,
+                                             'experienceYears': '${specialist.experienceYears}',
+                                             'rating': specialist.rating,
+                                             'imageUrl': specialist.imageUrl,
+                                           }
+                                         );
+                                      },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFFEEF0FA),
                                         foregroundColor: const Color(0xFF2C49C6),

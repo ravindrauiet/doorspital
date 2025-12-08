@@ -24,6 +24,7 @@ import 'package:door/routes/route_constants.dart';
 import 'package:door/features/auth/view/sign_in_screen.dart';
 import 'package:door/features/auth/view/sign_up_screen.dart';
 import 'package:door/features/doorstep_service/view/doorstep_service_details_screen.dart';
+import 'package:door/features/doorstep_service/view/doorstep_specialist_details_screen.dart';
 import 'package:door/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -169,6 +170,14 @@ GoRouter createRouter(String initialLocation) {
         builder: (context, state) {
            final serviceId = state.extra as String?;
            return DoorstepServiceDetailsScreen(serviceId: serviceId ?? 'default');
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.doorstepSpecialistDetailsScreen,
+        name: RouteConstants.doorstepSpecialistDetailsScreen,
+        builder: (context, state) {
+           final specialistData = state.extra as Map<String, dynamic>;
+           return DoorstepSpecialistDetailsScreen(specialistData: specialistData);
         },
       ),
     ],
