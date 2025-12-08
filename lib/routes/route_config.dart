@@ -23,6 +23,7 @@ import 'package:door/forgot_password_page.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/features/auth/view/sign_in_screen.dart';
 import 'package:door/features/auth/view/sign_up_screen.dart';
+import 'package:door/features/doorstep_service/view/doorstep_service_details_screen.dart';
 import 'package:door/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -160,6 +161,14 @@ GoRouter createRouter(String initialLocation) {
         builder: (context, state) {
           final article = state.extra as Map<String, String>;
           return ArticleDetailScreen(article: article);
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.doorstepServiceDetailsScreen,
+        name: RouteConstants.doorstepServiceDetailsScreen,
+        builder: (context, state) {
+           final serviceId = state.extra as String?;
+           return DoorstepServiceDetailsScreen(serviceId: serviceId ?? 'default');
         },
       ),
     ],

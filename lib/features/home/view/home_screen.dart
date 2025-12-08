@@ -219,10 +219,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 {'name': 'Blood Test', 'image': 'assets/images/Blood Test.png'},
                                 {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring.png'},
                               ];
-                              return _DoorstepServiceCard(
-                                name: services[index]['name'] as String,
-                                imagePath: services[index]['image'] as String,
-                              );
+                                return GestureDetector(
+                                  onTap: () {
+                                    context.pushNamed(
+                                      RouteConstants.doorstepServiceDetailsScreen,
+                                      extra: services[index]['name'] as String,
+                                    );
+                                  },
+                                  child: _DoorstepServiceCard(
+                                    name: services[index]['name'] as String,
+                                    imagePath: services[index]['image'] as String,
+                                  ),
+                                );
                             },
                           ),
                           const SizedBox(height: 25),
