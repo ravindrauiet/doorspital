@@ -1,6 +1,6 @@
 import 'package:door/features/articles/view/articles_list_screen.dart';
 import 'package:door/features/home/view/home_screen.dart';
-import 'package:door/features/notificatoins/view/notifications_screen.dart';
+import 'package:door/features/home/view/services_screen.dart';
 import 'package:door/features/profile/view/profile_screen.dart';
 import 'package:door/features/pharmacy/view/pharmacy_home_screen.dart';
 import 'package:door/utils/theme/colors.dart';
@@ -19,12 +19,12 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BottomNavbarProvider>(
       builder: (context, provider, child) {
-        final List<Widget> pages = [
-          HomeScreen(),
-          ArticlesListScreen(),
-          NotificationsScreen(),
-          ProfileScreen(),
-        ];
+          final List<Widget> pages = [
+            HomeScreen(),
+            ServicesScreen(), // New Services Tab
+            ArticlesListScreen(), // Health Tip Tab
+            ProfileScreen(),
+          ];
 
         return Scaffold(
           body: pages[provider.currentIndex],
@@ -35,12 +35,12 @@ class BottomNavBar extends StatelessWidget {
                 label: 'Home',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.article_outlined),
-                label: 'Health Tip',
+                icon: Icon(Icons.grid_view), 
+                label: 'Services',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.notifications_active_outlined),
-                label: 'Booking',
+                icon: Icon(Icons.article_outlined),
+                label: 'Health Tip',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.account_circle_outlined),

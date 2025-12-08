@@ -1,4 +1,5 @@
 import 'package:door/features/home/components/quick_action_button.dart';
+import 'package:door/features/home/components/doorstep_service_card.dart'; // Import shared component
 import 'package:door/services/article_service.dart';
 import 'package:door/services/models/article_model.dart';
 import 'package:door/features/home/components/article_card.dart';
@@ -80,7 +81,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             // Profile picture
                             CircleAvatar(
                               radius: 28,
-                              backgroundImage: const AssetImage(Images.ruchita),
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                              child: Text(
+                                _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -126,10 +135,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 20),
                             // Right-side doctor illustration
                             Image.asset(
-                              'assets/woman-doctor.png',
+                              'assets/images/homepagedocotr.png',
                               width: 100,
                               height: 140,
                               fit: BoxFit.contain,
@@ -221,12 +230,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: 6,
                             itemBuilder: (context, index) {
                               final services = [
-                                {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy.png'},
-                                {'name': 'Yoga Trainer', 'image': 'assets/images/Yoga Trainer.png'},
-                                {'name': 'Elderly Care', 'image': 'assets/images/Elderly Care.png'},
-                                {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor.png'},
-                                {'name': 'Blood Test', 'image': 'assets/images/Blood Test.png'},
-                                {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring.png'},
+                                {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
+                                {'name': 'Yoga Trainer', 'image': 'assets/images/Yoga Trainer copy.png'},
+                                {'name': 'Elderly Care', 'image': 'assets/images/Elderly Care copy.png'},
+                                {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor copy.png'},
+                                {'name': 'Blood Test', 'image': 'assets/images/Blood Test copy.png'},
+                                {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring copy.png'},
                               ];
                                 return GestureDetector(
                                   onTap: () {
@@ -235,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       extra: services[index]['name'] as String,
                                     );
                                   },
-                                  child: _DoorstepServiceCard(
+                                  child: DoorstepServiceCard(
                                     name: services[index]['name'] as String,
                                     imagePath: services[index]['image'] as String,
                                   ),
@@ -444,69 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Doorstep Service Card Widget
-class _DoorstepServiceCard extends StatelessWidget {
-  final String name;
-  final String imagePath;
-
-  const _DoorstepServiceCard({
-    required this.name,
-    required this.imagePath,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.teal.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  imagePath,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: AppColors.teal,
-                        size: 32,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
+// DoorstepServiceCard moved to components folder
 
 // Most Booked Service Card Widget
 class _MostBookedServiceCard extends StatelessWidget {
