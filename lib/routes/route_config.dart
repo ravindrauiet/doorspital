@@ -27,6 +27,9 @@ import 'package:door/features/doorstep_service/view/doorstep_service_details_scr
 import 'package:door/features/doorstep_service/view/doorstep_specialist_details_screen.dart';
 import 'package:door/features/legal/view/terms_and_conditions_screen.dart';
 import 'package:door/features/legal/view/privacy_policy_screen.dart';
+import 'package:door/features/clinic/view/clinic_speciality_screen.dart';
+import 'package:door/features/clinic/view/clinic_doctor_selection_screen.dart';
+import 'package:door/features/clinic/view/clinic_doctor_profile_screen.dart';
 import 'package:door/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -191,6 +194,27 @@ GoRouter createRouter(String initialLocation) {
         path: RouteConstants.privacyPolicyScreen,
         name: RouteConstants.privacyPolicyScreen,
         builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.clinicSpecialityScreen,
+        name: RouteConstants.clinicSpecialityScreen,
+        builder: (context, state) => const ClinicSpecialityScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.clinicDoctorSelectionScreen,
+        name: RouteConstants.clinicDoctorSelectionScreen,
+        builder: (context, state) {
+          final speciality = state.extra as String? ?? 'General Consultation';
+          return ClinicDoctorSelectionScreen(speciality: speciality);
+        },
+      ),
+      GoRoute(
+        path: RouteConstants.clinicDoctorProfileScreen,
+        name: RouteConstants.clinicDoctorProfileScreen,
+        builder: (context, state) {
+          final doctorId = state.extra as String? ?? '';
+          return ClinicDoctorProfileScreen(doctorId: doctorId);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

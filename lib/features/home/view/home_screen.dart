@@ -205,6 +205,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 label: 'Clinic',
                                 image:
                                     "assets/images/fa-solid_clinic-medical.png",
+                                onTap: () {
+                                  context.pushNamed(
+                                    RouteConstants.clinicSpecialityScreen,
+                                  );
+                                },
                               ),
                             ],
                           ),

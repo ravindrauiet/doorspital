@@ -27,4 +27,7 @@ class RouteConstants {
   static const doorstepSpecialistDetailsScreen = "/doorstep-specialist-details-screen";
   static const termsAndConditionsScreen = "/terms-and-conditions-screen";
   static const privacyPolicyScreen = "/privacy-policy-screen";
+  static const clinicSpecialityScreen = "/clinic-speciality-screen";
+  static const clinicDoctorSelectionScreen = "/clinic-doctor-selection-screen";
+  static const clinicDoctorProfileScreen = "/clinic-doctor-profile-screen";
 }
