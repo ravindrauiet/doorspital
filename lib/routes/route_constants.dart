@@ -25,4 +25,6 @@ class RouteConstants {
   static const articleDetailScreen = "/article-detail-screen";
   static const doorstepServiceDetailsScreen = "/doorstep-service-details-screen";
   static const doorstepSpecialistDetailsScreen = "/doorstep-specialist-details-screen";
+  static const termsAndConditionsScreen = "/terms-and-conditions-screen";
+  static const privacyPolicyScreen = "/privacy-policy-screen";
 }

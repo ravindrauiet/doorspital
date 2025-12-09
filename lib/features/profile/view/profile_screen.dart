@@ -899,6 +899,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onTap: () {},
       ),
       _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: Icons.description_outlined,
+        title: 'Terms of Service',
+        onTap: () {
+          context.pushNamed(RouteConstants.termsAndConditionsScreen);
+        },
+      ),
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: Icons.privacy_tip_outlined,
+        title: 'Privacy Policy',
+        onTap: () {
+          context.pushNamed(RouteConstants.privacyPolicyScreen);
+        },
+      ),
+      _ProfileTile(
         iconBg: AppColors.logoutBg,
         icon: Icons.logout_rounded,
         title: 'Logout',

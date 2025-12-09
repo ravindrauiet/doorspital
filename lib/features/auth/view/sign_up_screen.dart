@@ -188,31 +188,53 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                         const SizedBox(width: 4),
                         Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 14,
+                          child: Wrap(
+                            children: [
+                              Text(
+                                'I agree to the healthcare ',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                ),
                               ),
-                              children: [
-                                TextSpan(text: 'I agree to the healthcare '),
-                                TextSpan(
-                                  text: 'Terms of Service',
+                              GestureDetector(
+                                onTap: () => context.pushNamed(
+                                  RouteConstants.termsAndConditionsScreen,
+                                ),
+                                child: Text(
+                                  'Terms of Service',
                                   style: TextStyle(
                                     color: AppColors.teal,
                                     fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: AppColors.teal,
                                   ),
                                 ),
-                                TextSpan(text: ' and '),
-                                TextSpan(
-                                  text: 'Privacy Policy',
+                              ),
+                              Text(
+                                ' and ',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => context.pushNamed(
+                                  RouteConstants.privacyPolicyScreen,
+                                ),
+                                child: Text(
+                                  'Privacy Policy',
                                   style: TextStyle(
                                     color: AppColors.teal,
                                     fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: AppColors.teal,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

@@ -25,6 +25,8 @@ import 'package:door/features/auth/view/sign_in_screen.dart';
 import 'package:door/features/auth/view/sign_up_screen.dart';
 import 'package:door/features/doorstep_service/view/doorstep_service_details_screen.dart';
 import 'package:door/features/doorstep_service/view/doorstep_specialist_details_screen.dart';
+import 'package:door/features/legal/view/terms_and_conditions_screen.dart';
+import 'package:door/features/legal/view/privacy_policy_screen.dart';
 import 'package:door/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -179,6 +181,16 @@ GoRouter createRouter(String initialLocation) {
            final specialistData = state.extra as Map<String, dynamic>;
            return DoorstepSpecialistDetailsScreen(specialistData: specialistData);
         },
+      ),
+      GoRoute(
+        path: RouteConstants.termsAndConditionsScreen,
+        name: RouteConstants.termsAndConditionsScreen,
+        builder: (context, state) => const TermsAndConditionsScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.privacyPolicyScreen,
+        name: RouteConstants.privacyPolicyScreen,
+        builder: (context, state) => const PrivacyPolicyScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
