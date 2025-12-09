@@ -14,7 +14,7 @@ class DoorstepServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -24,14 +24,15 @@ class DoorstepServiceCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Expanded(
+            flex: 3,
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: AppColors.teal.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.teal.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 child: Image.asset(
                   imagePath,
                   fit: BoxFit.cover,
@@ -40,7 +41,7 @@ class DoorstepServiceCard extends StatelessWidget {
                       child: Icon(
                         Icons.image_not_supported,
                         color: AppColors.teal,
-                        size: 32,
+                        size: 28,
                       ),
                     );
                   },
@@ -48,17 +49,20 @@ class DoorstepServiceCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          const SizedBox(height: 6),
+          Flexible(
+            flex: 1,
+            child: Text(
+              name,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
