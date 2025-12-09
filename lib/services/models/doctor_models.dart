@@ -40,6 +40,8 @@ class Doctor {
   final String? city;
   final String? timeZone;
   final bool? isActive;
+  final String? about;
+  final String? qualification;
 
   Doctor({
     required this.id,
@@ -50,6 +52,8 @@ class Doctor {
     this.city,
     this.timeZone,
     this.isActive,
+    this.about,
+    this.qualification,
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
@@ -84,6 +88,8 @@ class Doctor {
       city: json['city'],
       timeZone: json['timeZone'],
       isActive: json['isActive'],
+      about: json['about'],
+      qualification: json['qualification'],
     );
   }
 }

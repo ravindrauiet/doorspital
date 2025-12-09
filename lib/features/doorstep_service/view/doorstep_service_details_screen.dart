@@ -33,7 +33,9 @@ class _DoorstepServiceDetailsScreenState
   Future<void> _fetchData() async {
     try {
       final details = await _api.getServiceDetails(widget.serviceId);
-      final doctorResponse = await _doctorService.getTopDoctors(); // Fetch all/top doctors
+      final doctorResponse = await _doctorService.getTopDoctors(
+        service: widget.serviceId, // Filter by service ID (e.g., "Home Doctor")
+      );
       
       if (mounted) {
         setState(() {
@@ -331,7 +333,10 @@ class _DoorstepServiceDetailsScreenState
                                              'specialization': specialist.specialization,
                                              'experienceYears': '${specialist.experienceYears ?? 0}',
                                              'rating': 4.5,
-                                             // No image URL passed, handled by fallback in next screen too if needed
+                                             'consultationFee': specialist.consultationFee,
+                                             'about': specialist.about,
+                                             'qualification': specialist.qualification,
+                                             'imageUrl': specialist.name?.isNotEmpty == true ? null : null,
                                            }
                                          );
                                       },

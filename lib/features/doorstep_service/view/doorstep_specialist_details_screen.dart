@@ -56,17 +56,17 @@ class DoorstepSpecialistDetailsScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                      Text(
-                      '₹799 / session',
-                      style: TextStyle(
+                      '₹${specialistData['consultationFee'] ?? 799} / session',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF1A1A1A),
                       ),
                     ),
                     Text(
-                      'Payable at clinic', // Or online
+                      'Payable at clinic',
                       style: TextStyle(
                         fontSize: 12,
                         color: Color(0xFF757575),
@@ -160,7 +160,7 @@ class DoorstepSpecialistDetailsScreen extends StatelessWidget {
               const SizedBox(height: 8),
               // Specialization
               Text(
-                'MPT - $specialization', // Assuming qualification is MPT for this mock
+                '${specialistData['qualification'] ?? 'MBBS'} - $specialization',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -261,7 +261,7 @@ class DoorstepSpecialistDetailsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Expert in physical rehabilitation, pain relief and post-operative recovery, helping patients regain mobility and strength holistically.',
+                      specialistData['about'] ?? 'Expert medical professional dedicated to patient care.',
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF757575),

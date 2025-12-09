@@ -11,6 +11,7 @@ class DoctorService {
   Future<ApiResponse<List<Doctor>>> getTopDoctors({
     String? specialization,
     String? city,
+    String? service,
     int page = 1,
     int limit = 10,
   }) async {
@@ -21,6 +22,7 @@ class DoctorService {
       };
       if (specialization != null) queryParams['specialization'] = specialization;
       if (city != null) queryParams['city'] = city;
+      if (service != null) queryParams['service'] = service;
 
       final response = await _client.get(
         '/doctors/top',
