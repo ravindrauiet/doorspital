@@ -10,6 +10,8 @@ import 'package:door/services/profile_service.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:door/features/pharmacy/view/my_orders_page.dart';
 import 'package:door/features/feedback/feedback_page.dart';
+import 'package:door/features/about/about_us_page.dart';
+import 'package:door/features/appointments/my_appointment_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -389,6 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onChat: appointment.canChat
                       ? () => _openChatForDoctorAppointment(appointment)
                       : null,
+                  onViewDetails: () => _showDoctorAppointmentDetails(appointment),
                 );
               },
             ),
@@ -399,190 +402,455 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final start = appointment.startTime.toLocal();
     final end = appointment.endTime.toLocal();
     final now = DateTime.now();
-    final isPast = end.isBefore(DateTime.now());
     final status = appointment.status.toLowerCase();
     final canChat = status == 'confirmed' || status == 'completed';
-    final doctorName =
-        appointment.doctor?.specialization ?? 'Doctor Consultation';
-    final location = appointment.doctor?.city ?? '––';
-    final relativeLabel = _relativeTimeLabel(start, end);
-    final isInSession = now.isAfter(start) && now.isBefore(end);
-    final Color timingColor = isInSession
-        ? AppColors.teal
-        : (now.isBefore(start) ? Colors.orange : Colors.grey);
-
-    final buttonLabel = canChat
-        ? 'Open chat for this appointment'
-        : (isPast
-              ? 'Chat unavailable (appointment closed)'
-              : 'Chat activates once confirmed');
+    final doctorName = appointment.doctor?.name ?? 
+        appointment.doctor?.specialization ?? 'Doctor';
+    final orderId = appointment.id.hashCode.abs() % 100000000;
+    final rating = 4.5 + (appointment.id.hashCode % 5) / 10;
+    
+    // Format date
+    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(16),
         color: Colors.white,
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              gradient: _homeHeroGradient,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
+          // Order ID
+          Text(
+            'Order ID: $orderId',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: AppColors.textPrimary,
             ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.white.withOpacity(0.18),
-                  child: Text(
-                    doctorName.isNotEmpty ? doctorName[0].toUpperCase() : '?',
+          ),
+          const SizedBox(height: 2),
+          // Date
+          Text(
+            '$dateText · $startTimeText - $endTimeText',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Doctor Info Row
+          Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Text(
+                  doctorName.isNotEmpty ? doctorName[0].toUpperCase() : 'D',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Doctor Name & Rating
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Dr. $doctorName',
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star,
+                        size: 14,
+                        color: Color(0xFFFBBF24),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFFFBBF24),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Action Buttons - Compact size
+          Row(
+            children: [
+              // Message Button
+              SizedBox(
+                height: 36,
+                child: OutlinedButton(
+                  onPressed: canChat
+                      ? () => _openChatForAppointment(appointment)
+                      : null,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    disabledForegroundColor: AppColors.textSecondary,
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  child: const Text(
+                    'Message',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+              ),
+              const SizedBox(width: 10),
+              // View Details Button
+              SizedBox(
+                height: 36,
+                child: ElevatedButton(
+                  onPressed: () => _showAppointmentDetails(appointment),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  child: const Text(
+                    'View Details',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAppointmentDetails(Appointment appointment) {
+    final start = appointment.startTime.toLocal();
+    final end = appointment.endTime.toLocal();
+    final now = DateTime.now();
+    final doctorName = appointment.doctor?.name ?? 
+        appointment.doctor?.specialization ?? 'Doctor';
+    final specialization = appointment.doctor?.specialization ?? 'General';
+    final city = appointment.doctor?.city ?? 'Not specified';
+    final status = appointment.status;
+    
+    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
+    
+    String chatAvailability;
+    Color chatColor;
+    if (now.isBefore(start)) {
+      final diff = start.difference(now);
+      final days = diff.inDays;
+      final hours = diff.inHours.remainder(24);
+      final mins = diff.inMinutes.remainder(60);
+      if (days > 0) {
+        chatAvailability = 'Chat opens in ${days}d ${hours}h';
+      } else if (hours > 0) {
+        chatAvailability = 'Chat opens in ${hours}h ${mins}m';
+      } else {
+        chatAvailability = 'Chat opens in ${mins}m';
+      }
+      chatColor = Colors.orange;
+    } else if (now.isAfter(end)) {
+      chatAvailability = 'Chat session ended';
+      chatColor = Colors.grey;
+    } else {
+      chatAvailability = 'Chat is available now!';
+      chatColor = AppColors.success;
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Appointment Details',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  child: Text(
+                    doctorName.isNotEmpty ? doctorName[0].toUpperCase() : 'D',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 20, color: AppColors.primary),
+                  ),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        doctorName,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (location.isNotEmpty)
-                        Text(
-                          location,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
-                          ),
-                        ),
+                      Text('Dr. $doctorName', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                      const SizedBox(height: 4),
+                      Text(specialization, style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.22),
-                    borderRadius: BorderRadius.circular(7),
+                    color: (status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    appointment.status,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: Text(status, style: TextStyle(color: status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange, fontWeight: FontWeight.w600, fontSize: 12)),
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            _buildInfoRow(Icons.calendar_today_outlined, 'Date', dateText),
+            const SizedBox(height: 14),
+            _buildInfoRow(Icons.access_time, 'Time', '$startTimeText - $endTimeText'),
+            const SizedBox(height: 14),
+            _buildInfoRow(Icons.location_on_outlined, 'Location', city),
+            const SizedBox(height: 14),
+            _buildInfoRow(Icons.chat_outlined, 'Chat Status', chatAvailability, valueColor: chatColor),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _openChatForAppointment(appointment);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Open Chat', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(IconData icon, String label, String value, {Color? valueColor}) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, size: 20, color: AppColors.textSecondary),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              const SizedBox(height: 2),
+              Text(value, style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: valueColor ?? AppColors.textPrimary)),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      ],
+    );
+  }
+
+  void _showDoctorAppointmentDetails(DoctorAppointmentSummary appointment) {
+    final start = appointment.startTime.toLocal();
+    final end = appointment.endTime.toLocal();
+    final now = DateTime.now();
+    final patientName = appointment.patient?.name ?? 'Patient';
+    final patientEmail = appointment.patient?.email ?? 'Not provided';
+    final status = appointment.status;
+    
+    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
+    
+    String chatAvailability;
+    Color chatColor;
+    if (now.isBefore(start)) {
+      final diff = start.difference(now);
+      final days = diff.inDays;
+      final hours = diff.inHours.remainder(24);
+      final mins = diff.inMinutes.remainder(60);
+      if (days > 0) {
+        chatAvailability = 'Chat opens in ${days}d ${hours}h';
+      } else if (hours > 0) {
+        chatAvailability = 'Chat opens in ${hours}h ${mins}m';
+      } else {
+        chatAvailability = 'Chat opens in ${mins}m';
+      }
+      chatColor = Colors.orange;
+    } else if (now.isAfter(end)) {
+      chatAvailability = 'Chat session ended';
+      chatColor = Colors.grey;
+    } else {
+      chatAvailability = 'Chat is available now!';
+      chatColor = AppColors.success;
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Patient Details',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_month_outlined,
-                      size: 18,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.schedule_rounded, size: 18, color: timingColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        relativeLabel,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: timingColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 18,
-                      color: Colors.black45,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      location,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: canChat
-                        ? () => _openChatForAppointment(appointment)
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey.shade200,
-                      disabledForegroundColor: Colors.black54,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 20,
-                    ),
-                    label: Text(buttonLabel, textAlign: TextAlign.center),
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  child: Text(
+                    patientName.isNotEmpty ? patientName[0].toUpperCase() : 'P',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 20, color: AppColors.primary),
                   ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(patientName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                      const SizedBox(height: 4),
+                      Text(patientEmail, style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(status, style: TextStyle(color: status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange, fontWeight: FontWeight.w600, fontSize: 12)),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            _buildInfoRow(Icons.calendar_today_outlined, 'Date', dateText),
+            const SizedBox(height: 14),
+            _buildInfoRow(Icons.access_time, 'Time', '$startTimeText - $endTimeText'),
+            const SizedBox(height: 14),
+            if (appointment.reason != null && appointment.reason!.isNotEmpty) ...[
+              _buildInfoRow(Icons.note_outlined, 'Reason', appointment.reason!),
+              const SizedBox(height: 14),
+            ],
+            _buildInfoRow(Icons.chat_outlined, 'Chat Status', chatAvailability, valueColor: chatColor),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: appointment.canChat ? () {
+                  Navigator.pop(context);
+                  _openChatForDoctorAppointment(appointment);
+                } : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade200,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Open Chat', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
@@ -879,6 +1147,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       _ProfileTile(
         iconBg: AppColors.softPurple,
+        icon: Icons.calendar_month_outlined,
+        title: 'My Appointments',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MyAppointmentPage()),
+          );
+        },
+      ),
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
         icon: Icons.favorite_rounded,
         title: 'My Saved',
         onTap: () {},
@@ -900,6 +1178,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const FeedbackPage()),
+          );
+        },
+      ),
+      _ProfileTile(
+        iconBg: AppColors.softPurple,
+        icon: Icons.info_outline,
+        title: 'About Us',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AboutUsPage()),
           );
         },
       ),
@@ -1317,12 +1605,14 @@ class _AppointmentTile extends StatelessWidget {
 class _DoctorAppointmentCard extends StatelessWidget {
   final DoctorAppointmentSummary appointment;
   final VoidCallback? onChat;
+  final VoidCallback? onViewDetails;
   final String relativeLabel;
   final Color timingColor;
 
   const _DoctorAppointmentCard({
     required this.appointment,
     this.onChat,
+    this.onViewDetails,
     required this.relativeLabel,
     required this.timingColor,
   });
@@ -1330,169 +1620,156 @@ class _DoctorAppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final patientName = appointment.patient?.name ?? 'Patient';
-    final patientEmail = appointment.patient?.email ?? '';
-    final buttonLabel = appointment.canChat
-        ? 'Open chat with patient'
-        : 'Chat available once confirmed';
+    final orderId = appointment.id.hashCode.abs() % 100000000;
+    final rating = 4.5 + (appointment.id.hashCode % 5) / 10;
     final start = appointment.startTime.toLocal();
     final end = appointment.endTime.toLocal();
+    
+    // Format date
+    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(16),
         color: Colors.white,
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              gradient: _homeHeroGradient,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.white.withOpacity(0.18),
-                  child: Text(
-                    patientName.isNotEmpty ? patientName[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        patientName,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (patientEmail.isNotEmpty)
-                        Text(
-                          patientEmail,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Text(
-                    appointment.status,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+          // Order ID
+          Text(
+            'Order ID: $orderId',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: AppColors.textPrimary,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_month_outlined,
-                      size: 18,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_formatDate(start)} · ${_formatTime(start)} - ${_formatTime(end)}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
+          const SizedBox(height: 2),
+          // Date
+          Text(
+            '$dateText · $startTimeText - $endTimeText',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Patient Info Row
+          Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Text(
+                  patientName.isNotEmpty ? patientName[0].toUpperCase() : 'P',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppColors.primary,
+                  ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.schedule_rounded, size: 18, color: timingColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        relativeLabel,
-                        style: TextStyle(
-                          fontSize: 13,
+              ),
+              const SizedBox(width: 10),
+              // Patient Name & Rating
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patientName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star,
+                        size: 14,
+                        color: Color(0xFFFBBF24),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: timingColor,
+                          color: Color(0xFFFBBF24),
                         ),
                       ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Action Buttons
+          Row(
+            children: [
+              // Message Button
+              SizedBox(
+                height: 36,
+                child: OutlinedButton(
+                  onPressed: onChat,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    disabledForegroundColor: AppColors.textSecondary,
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
-                ),
-                if (appointment.reason != null &&
-                    appointment.reason!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Reason: ${appointment.reason}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black54,
-                      ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  child: const Text(
+                    'Message',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
                     ),
                   ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: onChat,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey.shade200,
-                      disabledForegroundColor: Colors.black45,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // View Details Button
+              SizedBox(
+                height: 36,
+                child: ElevatedButton(
+                  onPressed: onViewDetails,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    icon: const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 20,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  child: const Text(
+                    'View Details',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
-                    label: Text(buttonLabel, textAlign: TextAlign.center),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
