@@ -190,9 +190,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           await _showBookingSuccessAnimation();
           if (!mounted) return;
           // After animation, switch bottom navbar to Profile tab and navigate there
-          // set provider index to Profile (index 2)
+          // set provider index to Profile (index 3)
           try {
-            context.read<BottomNavbarProvider>().updateIndex(2);
+            context.read<BottomNavbarProvider>().updateIndex(3);
           } catch (_) {}
           if (!mounted) return;
           // Use go_router to go to bottom navbar screen (replaces current location)
@@ -230,56 +230,123 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   }
 
   Future<void> _showBookingSuccessAnimation() async {
-    if (!mounted) return;
-    // Show dialog without awaiting it, then auto-close after a short delay.
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierLabel: 'Booking success',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) {
-        // pageBuilder must return a widget but we'll render in transitionBuilder
-        return const SizedBox.shrink();
-      },
-      transitionBuilder: (context, anim1, anim2, child) {
-        final scale = 0.8 + 0.2 * anim1.value;
-        return Opacity(
-          opacity: anim1.value,
-          child: Transform.scale(
-            scale: scale,
-            child: Center(
-              child: Container(
-                width: 260,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 12)],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.check_circle, size: 72, color: AppColors.teal),
-                    SizedBox(height: 10),
-                    Text('Appointment Booked', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400)),
-                    SizedBox(height: 6),
-                    Text('Your appointment was booked successfully.', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400)),
-                  ],
-                ),
+  if (!mounted) return;
+  showGeneralDialog(
+    context: context,
+    barrierDismissible: false,
+    barrierLabel: 'Booking success',
+    barrierColor: Colors.black.withOpacity(0.5),
+    transitionDuration: const Duration(milliseconds: 400),
+    pageBuilder: (context, anim1, anim2) {
+      return const SizedBox.shrink();
+    },
+    transitionBuilder: (context, anim1, anim2, child) {
+      final scale = 0.8 + 0.2 * anim1.value;
+      return Opacity(
+        opacity: anim1.value,
+        child: Transform.scale(
+          scale: scale,
+          child: Center(
+            child: Container(
+              width: 320,
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Illustration
+                  Image.asset(
+                    'assets/images/payment_doctors.png',
+                    height: 120,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 100,
+                      width: 100,
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check_circle,
+                        size: 60,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Title
+                  const Text(
+                    'Congratulations!',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Subtitle
+                  Text(
+                    'Your appointment has been booked successfully. You can view it in your appointments.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context, rootNavigator: true).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                      child: const Text(
+                        'View My Appointments',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
 
-    // keep dialog visible briefly then close it
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (!mounted) return;
-    try {
-      Navigator.of(context, rootNavigator: true).pop();
-    } catch (_) {}
-  }
+  // Wait for user to tap button, or auto-close after 3 seconds
+  await Future.delayed(const Duration(milliseconds: 3000));
+  if (!mounted) return;
+  try {
+    Navigator.of(context, rootNavigator: true).pop();
+  } catch (_) {}
+}
 
   @override
   Widget build(BuildContext context) {
