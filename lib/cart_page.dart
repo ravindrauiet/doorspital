@@ -561,15 +561,21 @@ class _PaymentSuccessDialog extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(18),
               ),
-              child: AspectRatio(
-                aspectRatio: 16 / 7,
-                child: Container(
-                  color: const Color(0xFFF4F7FB),
-                  child: const Center(
-                    child: Icon(
-                      Icons.check_circle,
-                      size: 48,
-                      color: Color(0xFF2F5DFB),
+              child: Image.asset(
+                'assets/images/payment_doctors.png',
+                width: double.infinity,
+                height: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => AspectRatio(
+                  aspectRatio: 16 / 7,
+                  child: Container(
+                    color: const Color(0xFFF4F7FB),
+                    child: const Center(
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 48,
+                        color: Color(0xFF2F5DFB),
+                      ),
                     ),
                   ),
                 ),

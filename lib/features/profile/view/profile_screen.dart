@@ -9,6 +9,7 @@ import 'package:door/services/models/appointment_models.dart';
 import 'package:door/services/profile_service.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:door/features/pharmacy/view/my_orders_page.dart';
+import 'package:door/features/feedback/feedback_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -896,7 +897,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         iconBg: AppColors.softPurple,
         icon: Icons.feedback_outlined,
         title: 'Feedback',
-        onTap: () {},
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const FeedbackPage()),
+          );
+        },
       ),
       _ProfileTile(
         iconBg: AppColors.softPurple,
