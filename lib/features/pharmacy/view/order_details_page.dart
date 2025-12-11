@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:door/services/models/pharmacy_models.dart';
+import 'package:door/services/pharmacy_order_service.dart';
 import 'package:door/services/api_client.dart';
 import 'package:door/utils/theme/colors.dart';
 
@@ -17,24 +18,56 @@ class OrderDetailsPage extends StatefulWidget {
 class _OrderDetailsPageState extends State<OrderDetailsPage> {
   final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
   final ApiClient _apiClient = ApiClient();
+  final PharmacyOrderService _orderService = PharmacyOrderService();
   bool _isExpanded = true;
+  bool _isRefreshing = false;
+  
+  // Mutable order state - initialized from widget, updated from API
+  late PharmacyOrder _order;
 
-  PharmacyOrder get order => widget.order;
+  @override
+  void initState() {
+    super.initState();
+    _order = widget.order;
+    // Refresh order data from API on page load
+    _refreshOrder();
+  }
 
-  // Timeline steps based on order status
+  Future<void> _refreshOrder() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    
+    try {
+      final response = await _orderService.getOrderById(_order.id);
+      if (mounted && response.success && response.data != null) {
+        setState(() => _order = response.data!);
+      }
+    } catch (e) {
+      debugPrint('Failed to refresh order: $e');
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  PharmacyOrder get order => _order;
+
+  // Timeline steps based on order status - matches pharmacy dashboard
   static const List<Map<String, String>> _steps = [
     {'key': 'pending', 'label': 'Order Placed', 'desc': 'Your order was placed for delivery'},
-    {'key': 'processing', 'label': 'Processing', 'desc': 'Your order is Processing for confirmation. Will confirmed within 5 minutes.'},
-    {'key': 'shipped', 'label': 'Confirmed', 'desc': 'Your order is confirmed. Will delivery soon with 2 days.'},
-    {'key': 'delivered', 'label': 'Deliver', 'desc': 'Product delivery to you and marked as delivered by customers.'},
+    {'key': 'processing', 'label': 'Processing', 'desc': 'Your order is being processed for confirmation.'},
+    {'key': 'ready_for_delivery', 'label': 'Ready for Delivery', 'desc': 'Your order is packed and ready for pickup.'},
+    {'key': 'out_for_delivery', 'label': 'Out for Delivery', 'desc': 'Your order is on the way to you!'},
+    {'key': 'delivered', 'label': 'Delivered', 'desc': 'Your order has been delivered successfully.'},
   ];
 
   int get _currentStepIndex {
     final statusMap = {
       'pending': 0,
       'processing': 1,
-      'shipped': 2,
-      'delivered': 3,
+      'ready_for_delivery': 2,
+      'shipped': 2,  // Legacy status maps to ready_for_delivery
+      'out_for_delivery': 3,
+      'delivered': 4,
       'cancelled': -1,
     };
     return statusMap[order.status.toLowerCase()] ?? 0;
@@ -87,34 +120,55 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          if (_isRefreshing)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+              onPressed: _refreshOrder,
+            ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Delivery Details Card with Product & Timeline
-            _buildDeliveryDetailsCard(),
-            
-            if (_isExpanded) ...[
-              const SizedBox(height: 24),
-              // Order Details Section
-              _buildOrderDetailsSection(),
-              const SizedBox(height: 24),
-              // Bill Summary
-              _buildBillSummary(),
-              const SizedBox(height: 24),
-              // Payment Method
-              _buildPaymentMethod(),
+      body: RefreshIndicator(
+        onRefresh: _refreshOrder,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Delivery Details Card with Product & Timeline
+              _buildDeliveryDetailsCard(),
+              
+              if (_isExpanded) ...[
+                const SizedBox(height: 24),
+                // Order Details Section
+                _buildOrderDetailsSection(),
+                const SizedBox(height: 24),
+                // Bill Summary
+                _buildBillSummary(),
+                const SizedBox(height: 24),
+                // Payment Method
+                _buildPaymentMethod(),
+                const SizedBox(height: 16),
+                // Help Section
+                _buildHelpSection(),
+              ],
+              
               const SizedBox(height: 16),
-              // Help Section
-              _buildHelpSection(),
+              // Show More/Less Toggle
+              _buildShowToggle(),
             ],
-            
-            const SizedBox(height: 16),
-            // Show More/Less Toggle
-            _buildShowToggle(),
-          ],
+          ),
         ),
       ),
     );
