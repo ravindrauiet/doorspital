@@ -645,7 +645,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                           ],
                         ),
                       ),
-                    // Times grid
+                    // Times grid - grouped by Morning, Afternoon, Evening
                     availabilityState.availableSlots.isEmpty
                         ? Center(
                             child: Padding(
@@ -677,57 +677,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                               ),
                             ),
                           )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Select a time slot (${availabilityState.availableSlots.length} available)',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF8F9BB3),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              GridView.builder(
-                                itemCount:
-                                    availabilityState.availableSlots.length,
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 3,
-                                      crossAxisSpacing: 12,
-                                      mainAxisSpacing: 12,
-                                      childAspectRatio: 2.8,
-                                    ),
-                                itemBuilder: (context, index) {
-                                  final slot =
-                                      availabilityState.availableSlots[index];
-                                  final selected =
-                                      availabilityState
-                                          .selectedSlot
-                                          ?.startUtc ==
-                                      slot.startUtc;
-
-                                  // Use label from API if available, otherwise format the time
-                                  final timeLabel = slot.label.isNotEmpty
-                                      ? slot.label
-                                      : _formatTime(slot.startUtc);
-
-                                  return _TimeChip(
-                                    label: timeLabel,
-                                    selected: selected,
-                                    available: slot.available,
-                                    onTap: slot.available
-                                        ? () =>
-                                              availabilityState.selectSlot(slot)
-                                        : null,
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
+                        : _buildGroupedTimeSlots(availabilityState),
                   ],
                 ),
 
@@ -755,6 +705,154 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
       return formatter.format(date);
     } catch (e) {
       return dateString;
+    }
+  }
+
+  /// Categorizes slots into Morning, Afternoon, Evening and returns the grouped UI
+  Widget _buildGroupedTimeSlots(DoctorAvailabilityProvider availabilityState) {
+    final slots = availabilityState.availableSlots;
+    
+    // Categorize slots by time of day
+    final morningSlots = <TimeSlot>[];
+    final afternoonSlots = <TimeSlot>[];
+    final eveningSlots = <TimeSlot>[];
+    
+    for (final slot in slots) {
+      final hour = _getHourFromSlot(slot);
+      if (hour < 12) {
+        morningSlots.add(slot);
+      } else if (hour < 17) {
+        afternoonSlots.add(slot);
+      } else {
+        eveningSlots.add(slot);
+      }
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Morning Section
+        if (morningSlots.isNotEmpty)
+          _buildTimeSection(
+            icon: Icons.wb_sunny_outlined,
+            title: 'Morning',
+            slotCount: morningSlots.length,
+            slots: morningSlots,
+            availabilityState: availabilityState,
+            iconColor: const Color(0xFFFFA726),
+          ),
+        
+        // Afternoon Section
+        if (afternoonSlots.isNotEmpty) ...[
+          if (morningSlots.isNotEmpty) const SizedBox(height: 20),
+          _buildTimeSection(
+            icon: Icons.wb_sunny,
+            title: 'Afternoon',
+            slotCount: afternoonSlots.length,
+            slots: afternoonSlots,
+            availabilityState: availabilityState,
+            iconColor: const Color(0xFFFFA000),
+          ),
+        ],
+        
+        // Evening Section
+        if (eveningSlots.isNotEmpty) ...[
+          if (morningSlots.isNotEmpty || afternoonSlots.isNotEmpty) 
+            const SizedBox(height: 20),
+          _buildTimeSection(
+            icon: Icons.nightlight_round,
+            title: 'Evening',
+            slotCount: eveningSlots.length,
+            slots: eveningSlots,
+            availabilityState: availabilityState,
+            iconColor: const Color(0xFF5C6BC0),
+          ),
+        ],
+      ],
+    );
+  }
+  
+  Widget _buildTimeSection({
+    required IconData icon,
+    required String title,
+    required int slotCount,
+    required List<TimeSlot> slots,
+    required DoctorAvailabilityProvider availabilityState,
+    required Color iconColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header
+        Row(
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '($slotCount slots)',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Slots Grid
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: slots.map((slot) {
+            final selected = availabilityState.selectedSlot?.startUtc == slot.startUtc;
+            final timeLabel = slot.label.isNotEmpty
+                ? slot.label
+                : _formatTime(slot.startUtc);
+            
+            return _TimeChip(
+              label: timeLabel,
+              selected: selected,
+              available: slot.available,
+              onTap: slot.available
+                  ? () => availabilityState.selectSlot(slot)
+                  : null,
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+  
+  int _getHourFromSlot(TimeSlot slot) {
+    try {
+      // Try to parse from label first (e.g., "10:00 AM", "2:30 PM")
+      if (slot.label.isNotEmpty) {
+        final label = slot.label.toUpperCase();
+        final timeParts = label.replaceAll(RegExp(r'[APM\s]'), '').split(':');
+        if (timeParts.isNotEmpty) {
+          int hour = int.tryParse(timeParts[0]) ?? 0;
+          if (label.contains('PM') && hour != 12) {
+            hour += 12;
+          } else if (label.contains('AM') && hour == 12) {
+            hour = 0;
+          }
+          return hour;
+        }
+      }
+      // Fallback to parsing the UTC time
+      final dateTime = DateTime.parse(slot.startUtc).toLocal();
+      return dateTime.hour;
+    } catch (e) {
+      return 12; // Default to afternoon if parsing fails
     }
   }
 }
@@ -869,47 +967,42 @@ class _TimeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Purple/violet color for the design
+    const primaryPurple = Color(0xFF7C3AED);
+    
     return InkWell(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(8),
       onTap: available ? onTap : null,
       child: Opacity(
         opacity: available ? 1.0 : 0.5,
         child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(8),
             color: selected
-                ? AppColors.teal
+                ? primaryPurple
                 : available
-                ? Colors.white
-                : Colors.grey[200],
+                    ? Colors.white
+                    : Colors.grey[100],
             border: Border.all(
               color: selected
-                  ? Colors.transparent
+                  ? primaryPurple
                   : available
-                  ? const Color(0xFFE7ECF3)
-                  : Colors.grey[300]!,
+                      ? primaryPurple.withOpacity(0.5)
+                      : Colors.grey[300]!,
+              width: 1.5,
             ),
-            boxShadow: [
-              if (selected)
-                BoxShadow(
-                  color: AppColors.teal.withOpacity(0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-            ],
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: selected
-                    ? Colors.white
-                    : available
-                    ? const Color(0xFF111827)
-                    : Colors.grey[600]!,
-                fontSize: 12,
-              ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: selected
+                  ? Colors.white
+                  : available
+                      ? primaryPurple
+                      : Colors.grey[500]!,
+              fontSize: 13,
             ),
           ),
         ),
