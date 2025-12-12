@@ -409,119 +409,129 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
         children: [
           // Doctor card
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.greySecondry,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=300',
-                    width: 125,
-                    height: 125,
+                  child: Image.asset(
+                    'assets/images/doctor.png',
+                    width: 110,
+                    height: 130,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        width: 125,
-                        height: 125,
+                        width: 110,
+                        height: 130,
                         color: Colors.grey[300],
                         child: const Icon(Icons.person, size: 50),
                       );
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Doctor Name
                       Text(
                         _doctor!.name != null && _doctor!.name!.isNotEmpty
                             ? '${_doctor!.name}'
                             : 'Dr. ${_doctor!.specialization}',
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 6),
+                      // Specialty
                       Text(
                         _doctor!.specialization,
                         style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8F9BB3),
+                          fontSize: 14,
+                          color: AppColors.teal,
                         ),
                       ),
+                      // City
                       if (_doctor!.city != null) ...[
                         const SizedBox(height: 4),
                         Text(
                           _doctor!.city!,
                           style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF8F9BB3),
+                            fontSize: 13,
+                            color: AppColors.teal,
                           ),
                         ),
                       ],
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F1FF),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 4,
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  size: 14,
-                                  color: Color(0xFF2F80ED),
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  '4.7',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                    color: Color(0xFF2F80ED),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                        ],
-                      ),
                       const SizedBox(height: 10),
+                      // Rating Badge
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEBF4FF),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.star,
+                              size: 16,
+                              color: Color(0xFF3B82F6),
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              '4.7',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: Color(0xFF3B82F6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Fee
                       if (_doctor!.consultationFee != null)
                         Row(
                           children: [
-                            const Text(
+                            Text(
                               'Fee  ',
                               style: TextStyle(
-                                color: Color(0xFF8F9BB3),
-                                fontSize: 16,
+                                color: Colors.grey[400],
+                                fontSize: 15,
                               ),
                             ),
                             Text(
                               _doctor!.consultationFee!.toStringAsFixed(0),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 16,
+                                fontSize: 18,
+                                color: Color(0xFF1F2937),
                               ),
                             ),
-                            const Text(
+                            Text(
                               '/consultation',
                               style: TextStyle(
-                                color: Color(0xFF8F9BB3),
-                                fontSize: 12,
+                                color: Colors.grey[400],
+                                fontSize: 13,
                               ),
                             ),
                           ],
