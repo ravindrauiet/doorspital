@@ -30,6 +30,7 @@ import 'package:door/features/legal/view/privacy_policy_screen.dart';
 import 'package:door/features/clinic/view/clinic_speciality_screen.dart';
 import 'package:door/features/clinic/view/clinic_doctor_selection_screen.dart';
 import 'package:door/features/clinic/view/clinic_doctor_profile_screen.dart';
+import 'package:door/features/profile/view/help_center_screen.dart';
 import 'package:door/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -215,6 +216,11 @@ GoRouter createRouter(String initialLocation) {
           final doctorId = state.extra as String? ?? '';
           return ClinicDoctorProfileScreen(doctorId: doctorId);
         },
+      ),
+      GoRoute(
+        path: RouteConstants.helpCenterScreen,
+        name: RouteConstants.helpCenterScreen,
+        builder: (context, state) => const HelpCenterScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

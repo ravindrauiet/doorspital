@@ -1166,9 +1166,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: _isDoctor
             ? Icons.forum_outlined
             : Icons.chat_bubble_outline_rounded,
-        title: _isDoctor ? 'Patient Chats' : 'Contact Support',
+        title: _isDoctor ? 'Patient Chats' : 'Support',
         onTap: () {
-          context.pushNamed(RouteConstants.chatListScreen);
+          if (_isDoctor) {
+            context.pushNamed(RouteConstants.chatListScreen);
+          } else {
+             context.pushNamed(RouteConstants.helpCenterScreen);
+          }
         },
       ),
       _ProfileTile(

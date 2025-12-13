@@ -235,12 +235,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: 6,
                             itemBuilder: (context, index) {
                               final services = [
+                                {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor copy.png'},
+                                {'name': 'Elderly Care', 'image': 'assets/images/Elderly Care copy.png'},
+                                {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring copy.png'},
                                 {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
                                 {'name': 'Yoga Trainer', 'image': 'assets/images/Yoga Trainer copy.png'},
-                                {'name': 'Elderly Care', 'image': 'assets/images/Elderly Care copy.png'},
-                                {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor copy.png'},
                                 {'name': 'Blood Test', 'image': 'assets/images/Blood Test copy.png'},
-                                {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring copy.png'},
                               ];
                                 return GestureDetector(
                                   onTap: () {

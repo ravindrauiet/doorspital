@@ -1,5 +1,6 @@
 class RouteConstants {
   static const onboardingScreen = "/onboarding-screen";
+  static const String helpCenterScreen = '/help-center';
   static const homeScreen = "/home-screen";
   static const welcomeScreen = "/welcome-screen";
   static const signInScreen = "/sign-in-screen";
