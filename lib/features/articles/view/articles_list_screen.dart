@@ -72,7 +72,7 @@ class _ArticlesListScreenState extends State<ArticlesListScreen> {
                           'title': article.title,
                           'date': article.date,
                           'readTime': article.time,
-                          'content': 'Content fetching not implemented in detail screen yet, passing placeholder or need full article data', // User didn't ask for detail screen update explicitly but I should pass compatible data. The previous code passed map. I'll stick to map for now as DetailScreen likely expects map.
+                          'content': article.description,
                         },
                       );
                     },

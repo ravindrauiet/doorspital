@@ -4,6 +4,7 @@ class Article {
   final String title;
   final String date;
   final String time; // read time
+  final String description;
 
   Article({
     required this.id,
@@ -11,6 +12,7 @@ class Article {
     required this.title,
     required this.date,
     required this.time,
+    required this.description,
   });
 
   factory Article.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class Article {
       title: json['title'] ?? '',
       date: json['date'] ?? '',
       time: json['time'] ?? '5 min read',
+      description: json['description'] ?? '',
     );
   }
 }
