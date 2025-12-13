@@ -37,7 +37,7 @@ class SearchField extends StatelessWidget {
         elevation: 0,
         child: CustomTextField(
           radius: 50,
-          hint: "Search doctor, drugs, articles…",
+          hint: "Search doctor, city, articles…",
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 24,
