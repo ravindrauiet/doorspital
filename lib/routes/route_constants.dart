@@ -31,4 +31,5 @@ class RouteConstants {
   static const clinicSpecialityScreen = "/clinic-speciality-screen";
   static const clinicDoctorSelectionScreen = "/clinic-doctor-selection-screen";
   static const clinicDoctorProfileScreen = "/clinic-doctor-profile-screen";
+  static const globalSearchScreen = "/global-search-screen";
 }

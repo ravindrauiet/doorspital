@@ -3,8 +3,8 @@ import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
 
 class SearchField extends StatelessWidget {
-  final VoidCallback onFilterTap;
-  const SearchField({super.key, required this.onFilterTap});
+  final VoidCallback? onTap;
+  const SearchField({super.key, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -33,12 +33,15 @@ class SearchField extends StatelessWidget {
         ],
       ),
       child: Material(
-        color: Colors.transparent,
+        color: Colors.transparent, // Required to let the tap through if needed, but CustomTextField handles it
         elevation: 0,
+        borderRadius: BorderRadius.circular(50),
         child: CustomTextField(
           radius: 50,
-          hint: "Search doctor, city, articles…",
+          hint: "Search doctor, drugs, articles...",
           fillColor: Colors.white,
+          readOnly: true, // Make it act like a button
+          onTap: onTap, // Handled by CustomTextField -> TextFormField
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 24,
             vertical: 22,

@@ -9,7 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class TopDoctorsScreen extends StatefulWidget {
-  const TopDoctorsScreen({super.key});
+  final String? category;
+  const TopDoctorsScreen({super.key, this.category});
 
   @override
   State<TopDoctorsScreen> createState() => _TopDoctorsScreenState();
@@ -25,6 +26,8 @@ class _TopDoctorsScreenState extends State<TopDoctorsScreen> {
     'Bone',
     'General',
     'Dental',
+    'ENT', // Added
+    'OPD', // Added
   ];
   int selectedChip = 0;
   final _doctorService = DoctorService();
@@ -35,7 +38,22 @@ class _TopDoctorsScreenState extends State<TopDoctorsScreen> {
   @override
   void initState() {
     super.initState();
+    _handleInitialCategory();
     _loadDoctors();
+  }
+
+  void _handleInitialCategory() {
+    if (widget.category != null) {
+      String cat = widget.category!;
+      // Map Home Screen names to Chips names
+      if (cat == 'Cardio') cat = 'Heart';
+      if (cat == 'Ortho') cat = 'Bone';
+      
+      final index = chips.indexWhere((element) => element.toLowerCase() == cat.toLowerCase());
+      if (index != -1) {
+        selectedChip = index;
+      }
+    }
   }
 
   Future<void> _loadDoctors() async {

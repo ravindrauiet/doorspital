@@ -4,6 +4,7 @@ import 'package:door/services/article_service.dart';
 import 'package:door/services/models/article_model.dart';
 import 'package:door/features/home/components/article_card.dart';
 import 'package:door/features/home/components/home_search_feild.dart';
+import 'package:door/features/home/components/home_banner.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/services/auth_service.dart';
 import 'package:door/utils/theme/colors.dart';
@@ -50,133 +51,31 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Blue header
-            Container(
-              height: 280,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF2F49D0), Color(0xFF2741BE)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              HomeBanner(
+                onBookService: () {
+                   context.pushNamed(
+                     RouteConstants.doorstepServiceDetailsScreen,
+                     extra: 'Elderly Care',
+                   );
+                },
+                onSupport: () => context.pushNamed(RouteConstants.helpCenterScreen),
+                onPlay: () {
+                  // TODO: Play video
+                },
+                onSearchTap: () => context.pushNamed(RouteConstants.globalSearchScreen),
               ),
-            ),
-            // Content sheet
-            SingleChildScrollView(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      left: 20,
-                      right: 20,
-                      top: 20,
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Profile picture
-                            CircleAvatar(
-                              radius: 28,
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              child: Text(
-                                _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'welcome!',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  _loading
-                                      ? const SizedBox(
-                                          height: 24,
-                                          width: 100,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                          ),
-                                        )
-                                      : Text(
-                                          _userName,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'How is it going today?',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            // Right-side doctor illustration
-                            Image.asset(
-                              'assets/images/homepagedocotr.png',
-                              width: 100,
-                              height: 140,
-                              fit: BoxFit.contain,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        // Search bar overlapping both sections
-                        SearchField(onFilterTap: () {}),
-                        const SizedBox(height: 5), // No margin after search bar
-                      ],
-                    ),
-                  ),
+              
+              const SizedBox(height: 20),
 
-                  // White card sheet
-                  Transform.translate(
-                    offset: const Offset(0, 0),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(22),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x14000000),
-                            blurRadius: 14,
-                            offset: Offset(0, -2),
-                          ),
-                        ],
-                      ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 40, 16, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Service Categories (Top Doctors, Pharmacy, Clinic)
+              // Content sheet
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    // Service Categories (Top Doctors, Pharmacy, Clinic)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
@@ -257,6 +156,107 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           ),
                           const SizedBox(height: 25),
+                          // Hospital Departments Section
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Hospital Departments',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  // Navigate to view all departments/doctors
+                                  context.pushNamed(RouteConstants.topDoctorsScreen);
+                                },
+                                child: const Text('View All'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          // Departments Grid
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 0.85,
+                            ),
+                            itemCount: 6,
+                            itemBuilder: (context, index) {
+                              final departments = [
+                                {'name': 'Dental', 'image': 'assets/images/dental_dept.png'}, 
+                                {'name': 'OPD', 'image': 'assets/images/opd_dept.png'},
+                                {'name': 'Skin', 'image': 'assets/images/skin_dept.png'},
+                                {'name': 'ENT', 'image': 'assets/images/ent_dept.png'},
+                                {'name': 'Ortho', 'image': 'assets/images/ortho_dept.png'},
+                                {'name': 'Cardio', 'image': 'assets/images/cardio_dept.png'},
+                              ];
+                              
+                              final dept = departments[index];
+                              
+                              return GestureDetector(
+                                onTap: () => context.pushNamed(
+                                  RouteConstants.topDoctorsScreen,
+                                  extra: dept['name'],
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey.shade200),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: Container(
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade50,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(10),
+                                            child: Image.asset(
+                                              dept['image']!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const Center(
+                                                child: Icon(Icons.image_not_supported, color: Colors.grey),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Flexible(
+                                        flex: 1,
+                                        child: Text(
+                                          dept['name']!,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.black87,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
                           // Most Booked Services Section
                           const Text(
                             'Most Booked Services',
@@ -346,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               style: TextStyle(
                                                 color: Colors.white70,
                                                 fontSize: 13,
-                                              ),
+                                                ),
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 3,
                                             ),
@@ -443,20 +443,120 @@ class _HomeScreenState extends State<HomeScreen> {
                               padding: EdgeInsets.all(16.0),
                               child: Text('No articles found'),
                             ),
+                          const SizedBox(height: 20),
+                          // Terms & Privacy Footer
+
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 10, 4, 30),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => context.pushNamed(RouteConstants.termsAndConditionsScreen),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF2845A8).withOpacity(0.08),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                        border: Border.all(color: const Color(0xFFF0F0F0)),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFE5E8FF),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.description_outlined,
+                                              size: 20,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'Terms & Conditions',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => context.pushNamed(RouteConstants.privacyPolicyScreen),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF2845A8).withOpacity(0.08),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                        border: Border.all(color: const Color(0xFFF0F0F0)),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFE5E8FF),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.shield_outlined,
+                                              size: 20,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'Privacy Policy',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
 
 // DoorstepServiceCard moved to components folder
 
@@ -543,3 +643,5 @@ class _MostBookedServiceCard extends StatelessWidget {
     );
   }
 }
+
+

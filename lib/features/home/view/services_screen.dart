@@ -65,7 +65,7 @@ class ServicesScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      SearchField(onFilterTap: () {}),
+                      SearchField(onTap: () {}),
                       const SizedBox(height: 16),
                     ],
                   ),

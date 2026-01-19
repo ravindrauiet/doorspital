@@ -19,27 +19,43 @@ class QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      // color: AppColors.black,
-      // width: (screenWidth / 3.3fR),
+      width: 100, // Fixed width for better consistency
       child: GestureDetector(
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(50),
-                color: AppColors.teal,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE3F2F6), // Light blueish background
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF16A085), // Darker teal for icon bg
+                ),
+                child: Image.asset(
+                  image, 
+                  height: 24, 
+                  color: Colors.white, // Assuming icons should be white on teal
+                ),
               ),
-              child: Image.asset(image, height: 30),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500, 
+                  fontSize: 13,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
       ),
     );

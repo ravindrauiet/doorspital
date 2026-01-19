@@ -9,6 +9,7 @@ import 'package:door/features/chat/view/chat_screen.dart';
 import 'package:door/features/home/view/bottom_nav_bar.dart';
 import 'package:door/features/home/view/home_screen.dart';
 import 'package:door/features/notificatoins/view/notifications_screen.dart';
+import 'package:door/features/search/view/global_search_screen.dart';
 import 'package:door/features/onboarding/view/onboarding_screen.dart';
 import 'package:door/features/pharmacy/view/pharmacy_home_screen.dart';
 import 'package:door/features/pharmacy/view/pharmacy_products_details_screen.dart';
@@ -51,7 +52,10 @@ GoRouter createRouter(String initialLocation) {
       GoRoute(
         path: RouteConstants.topDoctorsScreen,
         name: RouteConstants.topDoctorsScreen,
-        builder: (context, state) => const TopDoctorsScreen(),
+        builder: (context, state) {
+          final category = state.extra as String?;
+          return TopDoctorsScreen(category: category);
+        },
       ),
       GoRoute(
         path: RouteConstants.welcomeScreen,
@@ -221,6 +225,11 @@ GoRouter createRouter(String initialLocation) {
         path: RouteConstants.helpCenterScreen,
         name: RouteConstants.helpCenterScreen,
         builder: (context, state) => const HelpCenterScreen(),
+      ),
+      GoRoute(
+        path: RouteConstants.globalSearchScreen,
+        name: RouteConstants.globalSearchScreen,
+        builder: (context, state) => const GlobalSearchScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
