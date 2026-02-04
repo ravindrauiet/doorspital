@@ -187,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSpacing: 10,
                               childAspectRatio: 0.85,
                             ),
-                            itemCount: 10,
+                            itemCount: 9,
                             itemBuilder: (context, index) {
                               final departments = [
                                 {'name': 'Dental', 'image': 'assets/images/dental_dept.png'}, 
@@ -195,7 +195,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 {'name': 'Skin', 'image': 'assets/images/skin_dept.png'},
                                 {'name': 'ENT', 'image': 'assets/images/ent_dept.png'},
                                 {'name': 'Ortho', 'image': 'assets/images/ortho_dept.png'},
-                                {'name': 'Cardio', 'image': 'assets/images/cardio_dept.png'},
                                 {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor copy.png'},
                                 {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
                                 {'name': 'Yoga Trainer', 'image': 'assets/images/Yoga Trainer copy.png'},
