@@ -45,6 +45,22 @@ class _ClinicSpecialityScreenState extends State<ClinicSpecialityScreen> {
       'name': 'Pediatrics',
       'icon': Icons.child_care_outlined,
     },
+    {
+      'name': 'Home Doctor',
+      'icon': Icons.home_outlined,
+    },
+    {
+      'name': 'Physiotherapy',
+      'icon': Icons.accessibility_new_outlined,
+    },
+    {
+      'name': 'Yoga Trainer',
+      'icon': Icons.self_improvement_outlined,
+    },
+    {
+      'name': 'Blood Test',
+      'icon': Icons.bloodtype_outlined,
+    },
   ];
 
   @override
@@ -108,13 +124,31 @@ class _ClinicSpecialityScreenState extends State<ClinicSpecialityScreen> {
                         setState(() {
                           _selectedIndex = index;
                         });
-                        // Navigate to doctors list for this speciality
+                        
+                        final name = speciality['name'] as String;
                         // Clean up the name for API query (remove newlines)
-                        final specialityName = (speciality['name'] as String).replaceAll('\n', ' ');
-                        context.pushNamed(
-                          RouteConstants.clinicDoctorSelectionScreen,
-                          extra: specialityName,
-                        );
+                        final specialityName = name.replaceAll('\n', ' ');
+                        
+                        // Check if it's a "Doorstep" type service that needs special routing
+                        final isDoorstepService = [
+                          'Home Doctor', 
+                          'Physiotherapy', 
+                          'Yoga Trainer', 
+                          'Blood Test'
+                        ].contains(name);
+
+                        if (isDoorstepService) {
+                           context.pushNamed(
+                            RouteConstants.doorstepServiceDetailsScreen,
+                            extra: name,
+                          );
+                        } else {
+                          // Navigate to doctors list for this speciality
+                          context.pushNamed(
+                            RouteConstants.clinicDoctorSelectionScreen,
+                            extra: specialityName,
+                          );
+                        }
                       },
                       child: _SpecialityCard(
                         name: speciality['name'] as String,

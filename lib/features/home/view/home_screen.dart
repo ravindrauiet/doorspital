@@ -114,11 +114,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 25),
                           // Doorstep Service Section
-                          const Text(
-                            'Doorstep Service',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Doorstep Service',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -131,15 +134,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSpacing: 10,
                               childAspectRatio: 0.85,
                             ),
-                            itemCount: 6,
+                            itemCount: 3,
                             itemBuilder: (context, index) {
                               final services = [
-                                {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor copy.png'},
                                 {'name': 'Elderly Care', 'image': 'assets/images/Elderly Care copy.png'},
+                                {'name': 'Vet Care', 'image': 'assets/images/Home Doctor copy.png'}, // Placeholder image
                                 {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring copy.png'},
-                                {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
-                                {'name': 'Yoga Trainer', 'image': 'assets/images/Yoga Trainer copy.png'},
-                                {'name': 'Blood Test', 'image': 'assets/images/Blood Test copy.png'},
                               ];
                                 return GestureDetector(
                                   onTap: () {
@@ -187,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSpacing: 10,
                               childAspectRatio: 0.85,
                             ),
-                            itemCount: 6,
+                            itemCount: 10,
                             itemBuilder: (context, index) {
                               final departments = [
                                 {'name': 'Dental', 'image': 'assets/images/dental_dept.png'}, 
@@ -196,6 +196,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 {'name': 'ENT', 'image': 'assets/images/ent_dept.png'},
                                 {'name': 'Ortho', 'image': 'assets/images/ortho_dept.png'},
                                 {'name': 'Cardio', 'image': 'assets/images/cardio_dept.png'},
+                                {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor copy.png'},
+                                {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
+                                {'name': 'Yoga Trainer', 'image': 'assets/images/Yoga Trainer copy.png'},
+                                {'name': 'Blood Test', 'image': 'assets/images/Blood Test copy.png'},
                               ];
                               
                               final dept = departments[index];

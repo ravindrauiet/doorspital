@@ -14,6 +14,7 @@ class ServicesScreen extends StatelessWidget {
     {'name': 'Elderly Care', 'image': 'assets/images/Elderly Care copy.png'},
     {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
     {'name': 'Blood Test', 'image': 'assets/images/Blood Test copy.png'},
+    {'name': 'Vet Care', 'image': 'assets/images/Home Doctor copy.png'}, // Placeholder image
     {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring copy.png'},
     {'name': 'Post-Operative Care', 'image': 'assets/images/PostOperativeCare.png'},
     {'name': 'Vaccination', 'image': 'assets/images/Vaccination.png'},
