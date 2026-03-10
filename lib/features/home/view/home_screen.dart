@@ -9,6 +9,7 @@ import 'package:door/routes/route_constants.dart';
 import 'package:door/services/auth_service.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:door/utils/images/images.dart';
+import 'package:door/services/give_service_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
   final _articleService = ArticleService();
+  final _giveServiceService = GiveServiceService();
   String _userName = 'User';
   bool _loading = true;
   List<Article> _articles = [];
@@ -61,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
                      extra: 'Elderly Care',
                    );
                 },
+                onGiveService: _showGiveServiceForm,
                 onSupport: () => context.pushNamed(RouteConstants.helpCenterScreen),
                 onPlay: () {
                   // TODO: Play video
@@ -556,6 +559,183 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showGiveServiceForm() {
+    final _formKey = GlobalKey<FormState>();
+    final _nameController = TextEditingController();
+    final _mobileController = TextEditingController();
+    String? _selectedProfession;
+    bool _isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Center(
+                        child: Text(
+                          'Give a Service',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Name',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          prefixIcon: const Icon(Icons.person),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _mobileController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Mobile Number',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          prefixIcon: const Icon(Icons.phone),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your mobile number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedProfession,
+                        decoration: InputDecoration(
+                          labelText: 'Profession',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          prefixIcon: const Icon(Icons.work_outline),
+                        ),
+                        items: ['Doctor', 'Nurse'].map((String profession) {
+                          return DropdownMenuItem<String>(
+                            value: profession,
+                            child: Text(profession),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setStateModal(() {
+                            _selectedProfession = newValue;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please select your profession';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting
+                              ? null
+                              : () async {
+                                  if (_formKey.currentState!.validate()) {
+                                    setStateModal(() {
+                                      _isSubmitting = true;
+                                    });
+
+                                    final success = await _giveServiceService.submitRequest(
+                                      _nameController.text.trim(),
+                                      _mobileController.text.trim(),
+                                      _selectedProfession!,
+                                    );
+
+                                    setStateModal(() {
+                                      _isSubmitting = false;
+                                    });
+
+                                    if (success) {
+                                      if (Navigator.canPop(context)) Navigator.pop(context); // Close the modal
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Request submitted successfully. We will contact you soon.'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Failed to submit request. Please try again later.'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2F49D0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(color: Colors.white),
+                                )
+                              : const Text(
+                                  'Submit',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

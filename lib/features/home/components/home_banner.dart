@@ -6,14 +6,16 @@ import 'package:door/features/home/components/home_search_feild.dart';
 class HomeBanner extends StatelessWidget {
   final double height;
   final VoidCallback? onBookService;
+  final VoidCallback? onGiveService;
   final VoidCallback? onSupport;
   final VoidCallback? onPlay;
   final VoidCallback? onSearchTap;
 
   const HomeBanner({
     super.key,
-    this.height = 300,
+    this.height = 360,
     this.onBookService,
+    this.onGiveService,
     this.onSupport,
     this.onPlay,
     this.onSearchTap,
@@ -46,9 +48,13 @@ class HomeBanner extends StatelessWidget {
                 ),
                 
                 // Play Button
-                Center(
-                  child: GestureDetector(
-                    onTap: onPlay,
+                Positioned(
+                  top: 90,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: onPlay,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(50),
                       child: BackdropFilter(
@@ -69,6 +75,7 @@ class HomeBanner extends StatelessWidget {
                             color: Colors.white,
                             size: 32,
                           ),
+                          ),
                         ),
                       ),
                     ),
@@ -79,66 +86,100 @@ class HomeBanner extends StatelessWidget {
                 Positioned(
                   left: 20,
                   right: 20,
-                  bottom: 100, // Moved up to make room for SearchBar inside the banner
-                  child: Row(
+                  bottom: 90, // Added 5px margin to clear search bar completely
+                  child: Column(
                     children: [
-                      // Book a Service Button
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: onBookService,
-                          child: Container(
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2F49D0),
-                              borderRadius: BorderRadius.circular(25),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF2F49D0).withOpacity(0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Book a Service',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Support Button
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: onSupport,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(25),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      Row(
+                        children: [
+                          // Book a Service Button
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: onBookService,
                               child: Container(
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: const Color(0xFF2F49D0),
                                   borderRadius: BorderRadius.circular(25),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.4),
-                                    width: 1,
-                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2F49D0).withOpacity(0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
                                 child: const Center(
                                   child: Text(
-                                    'Support',
+                                    'Book a Service',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Give a Service Button
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: onGiveService,
+                              child: Container(
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2F49D0),
+                                  borderRadius: BorderRadius.circular(25),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2F49D0).withOpacity(0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'Give a Service',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Support Button
+                      GestureDetector(
+                        onTap: onSupport,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(25),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              height: 50,
+                              width: 160,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(25),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.4),
+                                  width: 1,
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Support',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
