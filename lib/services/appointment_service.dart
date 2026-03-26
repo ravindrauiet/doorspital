@@ -200,4 +200,36 @@ class AppointmentService {
       );
     }
   }
+
+  // GET /api/appointments/:appointmentId/queue
+  Future<ApiResponse<AppointmentQueue>> getAppointmentQueue(
+    String appointmentId,
+  ) async {
+    try {
+      final response = await _client.get(
+        '/appointments/$appointmentId/queue',
+      );
+
+      final data = _client.parseResponse(response);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return ApiResponse<AppointmentQueue>(
+          success: true,
+          data: AppointmentQueue.fromJson(
+            data['data'] as Map<String, dynamic>,
+          ),
+        );
+      } else {
+        return ApiResponse<AppointmentQueue>(
+          success: false,
+          message: data['message'] ?? 'Failed to get queue information',
+        );
+      }
+    } catch (e) {
+      return ApiResponse<AppointmentQueue>(
+        success: false,
+        message: e.toString(),
+      );
+    }
+  }
 }

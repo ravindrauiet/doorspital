@@ -206,3 +206,47 @@ class SearchAvailableDoctorsResponse {
     );
   }
 }
+
+/// Represents the queue status for a patient's appointment.
+class AppointmentQueue {
+  final int? queuePosition;
+  final int totalInQueue;
+  final int? patientsAhead;
+  final int? estimatedWaitMinutes;
+  final String status;
+  final DateTime startTime;
+  final DateTime endTime;
+  final String? message;
+
+  const AppointmentQueue({
+    this.queuePosition,
+    required this.totalInQueue,
+    this.patientsAhead,
+    this.estimatedWaitMinutes,
+    required this.status,
+    required this.startTime,
+    required this.endTime,
+    this.message,
+  });
+
+  bool get isCancelled => status.toLowerCase() == 'cancelled';
+  bool get isNext => patientsAhead == 0 && !isCancelled;
+
+  factory AppointmentQueue.fromJson(Map<String, dynamic> json) {
+    return AppointmentQueue(
+      queuePosition: json['queuePosition'] as int?,
+      totalInQueue: json['totalInQueue'] as int? ?? 0,
+      patientsAhead: json['patientsAhead'] as int?,
+      estimatedWaitMinutes: json['estimatedWaitMinutes'] as int?,
+      status: json['status']?.toString() ?? 'pending',
+      startTime: json['startTime'] != null
+          ? DateTime.parse(json['startTime'].toString())
+          : DateTime.now(),
+      endTime: json['endTime'] != null
+          ? DateTime.parse(json['endTime'].toString())
+          : DateTime.now(),
+      message: json['message'] as String?,
+    );
+  }
+}
+

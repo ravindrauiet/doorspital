@@ -4,6 +4,7 @@ import 'package:door/utils/theme/colors.dart';
 import 'package:door/services/appointment_service.dart';
 import 'package:door/services/models/appointment_models.dart';
 import 'package:door/features/chat/view/chat_screen.dart';
+import 'package:door/features/appointments/appointment_queue_page.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:go_router/go_router.dart';
 
@@ -215,10 +216,13 @@ class _MyAppointmentPageState extends State<MyAppointmentPage> with SingleTicker
       itemCount: appointments.length,
       separatorBuilder: (_, __) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
+        final appt = appointments[index];
         return _AppointmentCard(
-          appointment: appointments[index],
-          onMessage: () => _openChat(appointments[index]),
-          onViewDetails: () => _viewDetails(appointments[index]),
+          appointment: appt,
+          isUpcoming: isUpcoming,
+          onMessage: () => _openChat(appt),
+          onViewDetails: () => _viewDetails(appt),
+          onViewQueue: isUpcoming ? () => _viewQueue(appt) : null,
         );
       },
     );
@@ -250,17 +254,34 @@ class _MyAppointmentPageState extends State<MyAppointmentPage> with SingleTicker
       builder: (_) => _AppointmentDetailsSheet(appointment: appointment),
     );
   }
+
+  void _viewQueue(Appointment appointment) {
+    final doctorName = appointment.doctor?.name ?? 'Doctor';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AppointmentQueuePage(
+          appointmentId: appointment.id,
+          doctorName: doctorName,
+        ),
+      ),
+    );
+  }
 }
 
 class _AppointmentCard extends StatelessWidget {
   final Appointment appointment;
+  final bool isUpcoming;
   final VoidCallback onMessage;
   final VoidCallback onViewDetails;
+  final VoidCallback? onViewQueue;
 
   const _AppointmentCard({
     required this.appointment,
+    required this.isUpcoming,
     required this.onMessage,
     required this.onViewDetails,
+    this.onViewQueue,
   });
 
   @override
@@ -364,7 +385,7 @@ class _AppointmentCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          // Action Buttons - Compact size
+          // Action Buttons
           Row(
             children: [
               // Message Button
@@ -378,7 +399,7 @@ class _AppointmentCard extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   child: const Text(
                     'Message',
@@ -389,7 +410,7 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               // View Details Button
               SizedBox(
                 height: 36,
@@ -402,10 +423,10 @@ class _AppointmentCard extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   child: const Text(
-                    'View Details',
+                    'Details',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
@@ -413,6 +434,33 @@ class _AppointmentCard extends StatelessWidget {
                   ),
                 ),
               ),
+              // View Queue Button (only for upcoming appointments)
+              if (isUpcoming && onViewQueue != null) ...[
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 36,
+                  child: ElevatedButton.icon(
+                    onPressed: onViewQueue,
+                    icon: const Icon(Icons.queue_rounded, size: 15),
+                    label: const Text(
+                      'Queue',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
