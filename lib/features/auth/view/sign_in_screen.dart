@@ -193,6 +193,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 32),
 
+              /*
               // OR divider
               const Row(
                 children: [
@@ -221,6 +222,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 imageUrl: Images.facebookLogo,
                 onPressed: () {},
               ),
+              */
               const SizedBox(height: 32),
             ],
           ),

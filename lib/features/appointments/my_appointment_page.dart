@@ -5,6 +5,7 @@ import 'package:door/services/appointment_service.dart';
 import 'package:door/services/models/appointment_models.dart';
 import 'package:door/features/chat/view/chat_screen.dart';
 import 'package:door/features/appointments/appointment_queue_page.dart';
+import 'package:door/features/appointments/widgets/queue_status_badge.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:go_router/go_router.dart';
 
@@ -65,17 +66,15 @@ class _MyAppointmentPageState extends State<MyAppointmentPage> with SingleTicker
   }
 
   List<Appointment> get _upcomingAppointments {
-    final now = DateTime.now();
     return _appointments
-        .where((a) => a.startTime.isAfter(now) && a.status.toLowerCase() != 'cancelled')
+        .where((a) => a.status.toLowerCase() == 'pending' || a.status.toLowerCase() == 'confirmed')
         .toList()
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
   }
 
   List<Appointment> get _pastAppointments {
-    final now = DateTime.now();
     return _appointments
-        .where((a) => a.endTime.isBefore(now) || a.status.toLowerCase() == 'cancelled')
+        .where((a) => a.status.toLowerCase() == 'completed' || a.status.toLowerCase() == 'cancelled')
         .toList()
       ..sort((a, b) => b.startTime.compareTo(a.startTime));
   }
@@ -331,6 +330,8 @@ class _AppointmentCard extends StatelessWidget {
               color: AppColors.textSecondary.withOpacity(0.7),
             ),
           ),
+          if (isUpcoming) 
+            QueueStatusBadge(appointmentId: appointment.id),
           const SizedBox(height: 12),
           // Doctor Info Row
           Row(

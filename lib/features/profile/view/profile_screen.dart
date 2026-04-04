@@ -11,7 +11,9 @@ import 'package:door/utils/theme/colors.dart';
 import 'package:door/features/pharmacy/view/my_orders_page.dart';
 import 'package:door/features/feedback/feedback_page.dart';
 import 'package:door/features/about/about_us_page.dart';
+import 'package:door/features/appointments/appointment_queue_page.dart';
 import 'package:door/features/appointments/my_appointment_page.dart';
+import 'package:door/features/appointments/widgets/queue_status_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -449,6 +451,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary.withOpacity(0.7),
             ),
           ),
+          if (status == 'pending' || status == 'confirmed')
+            QueueStatusBadge(appointmentId: appointment.id),
           const SizedBox(height: 12),
           // Doctor Info Row
           Row(
@@ -504,58 +508,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 14),
           // Action Buttons - Compact size
-          Row(
-            children: [
-              // Message Button
-              SizedBox(
-                height: 36,
-                child: OutlinedButton(
-                  onPressed: canChat
-                      ? () => _openChatForAppointment(appointment)
-                      : null,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
-                    disabledForegroundColor: AppColors.textSecondary,
-                    side: const BorderSide(color: Color(0xFFE5E7EB)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Message Button
+                SizedBox(
+                  height: 36,
+                  child: OutlinedButton(
+                    onPressed: canChat
+                        ? () => _openChatForAppointment(appointment)
+                        : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      disabledForegroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: Color(0xFFE5E7EB)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
-                  child: const Text(
-                    'Message',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              // View Details Button
-              SizedBox(
-                height: 36,
-                child: ElevatedButton(
-                  onPressed: () => _showAppointmentDetails(appointment),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
-                  child: const Text(
-                    'View Details',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                    child: const Text(
+                      'Message',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                // Queue Button (Only for pending/confirmed)
+                if (status == 'pending' || status == 'confirmed') ...[
+                  SizedBox(
+                    height: 36,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _viewQueue(appointment),
+                      icon: const Icon(Icons.queue_rounded, size: 15),
+                      label: const Text(
+                        'Queue',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                // View Details Button
+                SizedBox(
+                  height: 36,
+                  child: ElevatedButton(
+                    onPressed: () => _showAppointmentDetails(appointment),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    child: const Text(
+                      'View Details',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -910,6 +943,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     context.pushNamed(
       RouteConstants.chatScreen,
       extra: ChatScreenArgs(appointmentId: appointment.id),
+    );
+  }
+
+  void _viewQueue(Appointment appointment) {
+    final doctorName = appointment.doctor?.name ?? appointment.doctor?.specialization ?? 'Doctor';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AppointmentQueuePage(
+          appointmentId: appointment.id,
+          doctorName: doctorName,
+        ),
+      ),
     );
   }
 
