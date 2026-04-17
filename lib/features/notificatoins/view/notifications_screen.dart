@@ -95,14 +95,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _error = 'Error loading notifications: $e';
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        if (refresh) {
-          _isLoading = false;
-        } else {
-          _isLoadingMore = false;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          if (refresh) {
+            _isLoading = false;
+          } else {
+            _isLoadingMore = false;
+          }
+        });
+      }
     }
   }
 
@@ -248,8 +249,12 @@ class _NotificationTile extends StatelessWidget {
 
   IconData _iconForType(String? type) {
     switch (type) {
+      case 'chat':
+        return Icons.chat_bubble_outline_rounded;
       case 'appointment':
         return Icons.schedule_outlined;
+      case 'admin':
+        return Icons.campaign_outlined;
       case 'pharmacy':
         return Icons.local_pharmacy_outlined;
       case 'order':
@@ -263,8 +268,12 @@ class _NotificationTile extends StatelessWidget {
 
   Color _colorForType(String? type) {
     switch (type) {
+      case 'chat':
+        return Colors.indigo;
       case 'appointment':
         return AppColors.primary;
+      case 'admin':
+        return Colors.deepOrange;
       case 'pharmacy':
         return AppColors.teal;
       case 'order':

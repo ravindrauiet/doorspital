@@ -1,4 +1,4 @@
-package com.app.doorspitals
+package com.company.doorspitals
 
 import io.flutter.embedding.android.FlutterActivity
 

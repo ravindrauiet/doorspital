@@ -5,6 +5,7 @@ import 'package:door/features/components/custom_appbar.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/services/appointment_service.dart';
 import 'package:door/services/auth_service.dart';
+import 'package:door/services/local_notification_manager.dart';
 import 'package:door/services/models/appointment_models.dart';
 import 'package:door/services/profile_service.dart';
 import 'package:door/utils/theme/colors.dart';
@@ -119,11 +120,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final bStart = b.startTime.toLocal();
           final aIsUpcoming = aStart.isAfter(now);
           final bIsUpcoming = bStart.isAfter(now);
-          
+
           if (aIsUpcoming != bIsUpcoming) {
             return aIsUpcoming ? -1 : 1; // Upcoming first
           }
-          
+
           if (aIsUpcoming) {
             return aStart.compareTo(bStart); // Nearest first for upcoming
           } else {
@@ -171,6 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _signOut() async {
+    LocalNotificationManager().stopPolling();
     await _authService.signOut();
     if (!mounted) return;
     context.goNamed(RouteConstants.signInScreen);
@@ -393,7 +395,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onChat: appointment.canChat
                       ? () => _openChatForDoctorAppointment(appointment)
                       : null,
-                  onViewDetails: () => _showDoctorAppointmentDetails(appointment),
+                  onViewDetails: () =>
+                      _showDoctorAppointmentDetails(appointment),
                 );
               },
             ),
@@ -406,15 +409,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final now = DateTime.now();
     final status = appointment.status.toLowerCase();
     final canChat = status == 'confirmed' || status == 'completed';
-    final doctorName = appointment.doctor?.name ?? 
-        appointment.doctor?.specialization ?? 'Doctor';
+    final doctorName =
+        appointment.doctor?.name ??
+        appointment.doctor?.specialization ??
+        'Doctor';
     final orderId = appointment.id.hashCode.abs() % 100000000;
     final rating = 4.5 + (appointment.id.hashCode % 5) / 10;
-    
+
     // Format date
-    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
-    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
-    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
+    final dateText =
+        '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText =
+        '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText =
+        '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -599,16 +607,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final start = appointment.startTime.toLocal();
     final end = appointment.endTime.toLocal();
     final now = DateTime.now();
-    final doctorName = appointment.doctor?.name ?? 
-        appointment.doctor?.specialization ?? 'Doctor';
+    final doctorName =
+        appointment.doctor?.name ??
+        appointment.doctor?.specialization ??
+        'Doctor';
     final specialization = appointment.doctor?.specialization ?? 'General';
     final city = appointment.doctor?.city ?? 'Not specified';
     final status = appointment.status;
-    
-    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
-    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
-    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
-    
+
+    final dateText =
+        '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText =
+        '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText =
+        '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
+
     String chatAvailability;
     Color chatColor;
     if (now.isBefore(start)) {
@@ -631,7 +644,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       chatAvailability = 'Chat is available now!';
       chatColor = AppColors.success;
     }
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -673,7 +686,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
                     doctorName.isNotEmpty ? doctorName[0].toUpperCase() : 'D',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 20, color: AppColors.primary),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 20,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -681,30 +698,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Dr. $doctorName', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                      Text(
+                        'Dr. $doctorName',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 17,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text(specialization, style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                      Text(
+                        specialization,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: (status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange).withOpacity(0.1),
+                    color:
+                        (status.toLowerCase() == 'confirmed'
+                                ? AppColors.success
+                                : Colors.orange)
+                            .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(status, style: TextStyle(color: status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange, fontWeight: FontWeight.w600, fontSize: 12)),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: status.toLowerCase() == 'confirmed'
+                          ? AppColors.success
+                          : Colors.orange,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
             _buildInfoRow(Icons.calendar_today_outlined, 'Date', dateText),
             const SizedBox(height: 14),
-            _buildInfoRow(Icons.access_time, 'Time', '$startTimeText - $endTimeText'),
+            _buildInfoRow(
+              Icons.access_time,
+              'Time',
+              '$startTimeText - $endTimeText',
+            ),
             const SizedBox(height: 14),
             _buildInfoRow(Icons.location_on_outlined, 'Location', city),
             const SizedBox(height: 14),
-            _buildInfoRow(Icons.chat_outlined, 'Chat Status', chatAvailability, valueColor: chatColor),
+            _buildInfoRow(
+              Icons.chat_outlined,
+              'Chat Status',
+              chatAvailability,
+              valueColor: chatColor,
+            ),
             const SizedBox(height: 28),
             SizedBox(
               width: double.infinity,
@@ -717,9 +771,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text('Open Chat', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                child: const Text(
+                  'Open Chat',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -728,14 +787,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-  
-  Widget _buildInfoRow(IconData icon, String label, String value, {Color? valueColor}) {
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Row(
       children: [
         Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(10),
+          ),
           child: Icon(icon, size: 20, color: AppColors.textSecondary),
         ),
         const SizedBox(width: 14),
@@ -743,9 +810,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              Text(
+                label,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
               const SizedBox(height: 2),
-              Text(value, style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: valueColor ?? AppColors.textPrimary)),
+              Text(
+                value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: valueColor ?? AppColors.textPrimary,
+                ),
+              ),
             ],
           ),
         ),
@@ -760,11 +837,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final patientName = appointment.patient?.name ?? 'Patient';
     final patientEmail = appointment.patient?.email ?? 'Not provided';
     final status = appointment.status;
-    
-    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
-    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
-    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
-    
+
+    final dateText =
+        '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText =
+        '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText =
+        '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
+
     String chatAvailability;
     Color chatColor;
     if (now.isBefore(start)) {
@@ -787,7 +867,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       chatAvailability = 'Chat is available now!';
       chatColor = AppColors.success;
     }
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -829,7 +909,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
                     patientName.isNotEmpty ? patientName[0].toUpperCase() : 'P',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 20, color: AppColors.primary),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 20,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -837,48 +921,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(patientName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                      Text(
+                        patientName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 17,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text(patientEmail, style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                      Text(
+                        patientEmail,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: (status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange).withOpacity(0.1),
+                    color:
+                        (status.toLowerCase() == 'confirmed'
+                                ? AppColors.success
+                                : Colors.orange)
+                            .withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(status, style: TextStyle(color: status.toLowerCase() == 'confirmed' ? AppColors.success : Colors.orange, fontWeight: FontWeight.w600, fontSize: 12)),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: status.toLowerCase() == 'confirmed'
+                          ? AppColors.success
+                          : Colors.orange,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
             _buildInfoRow(Icons.calendar_today_outlined, 'Date', dateText),
             const SizedBox(height: 14),
-            _buildInfoRow(Icons.access_time, 'Time', '$startTimeText - $endTimeText'),
+            _buildInfoRow(
+              Icons.access_time,
+              'Time',
+              '$startTimeText - $endTimeText',
+            ),
             const SizedBox(height: 14),
-            if (appointment.reason != null && appointment.reason!.isNotEmpty) ...[
+            if (appointment.reason != null &&
+                appointment.reason!.isNotEmpty) ...[
               _buildInfoRow(Icons.note_outlined, 'Reason', appointment.reason!),
               const SizedBox(height: 14),
             ],
-            _buildInfoRow(Icons.chat_outlined, 'Chat Status', chatAvailability, valueColor: chatColor),
+            _buildInfoRow(
+              Icons.chat_outlined,
+              'Chat Status',
+              chatAvailability,
+              valueColor: chatColor,
+            ),
             const SizedBox(height: 28),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: appointment.canChat ? () {
-                  Navigator.pop(context);
-                  _openChatForDoctorAppointment(appointment);
-                } : null,
+                onPressed: appointment.canChat
+                    ? () {
+                        Navigator.pop(context);
+                        _openChatForDoctorAppointment(appointment);
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey.shade200,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text('Open Chat', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                child: const Text(
+                  'Open Chat',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -947,7 +1076,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _viewQueue(Appointment appointment) {
-    final doctorName = appointment.doctor?.name ?? appointment.doctor?.specialization ?? 'Doctor';
+    final doctorName =
+        appointment.doctor?.name ??
+        appointment.doctor?.specialization ??
+        'Doctor';
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1135,16 +1267,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final previewAppointments =
-        _sortedPatientAppointments().take(3).toList(growable: false);
+    final previewAppointments = _sortedPatientAppointments()
+        .take(3)
+        .toList(growable: false);
     final hasMore = _appointments.length > previewAppointments.length;
 
     return _SectionCard(
       title: 'Your Appointments',
       child: Column(
         children: [
-          ...previewAppointments
-              .map((appointment) => _AppointmentTile(appointment: appointment)),
+          ...previewAppointments.map(
+            (appointment) => _AppointmentTile(appointment: appointment),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -1196,9 +1330,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.calendar_month_outlined,
         title: 'My Appointments',
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const MyAppointmentPage()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const MyAppointmentPage()));
         },
       ),
       _ProfileTile(
@@ -1217,7 +1351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (_isDoctor) {
             context.pushNamed(RouteConstants.chatListScreen);
           } else {
-             context.pushNamed(RouteConstants.helpCenterScreen);
+            context.pushNamed(RouteConstants.helpCenterScreen);
           }
         },
       ),
@@ -1226,9 +1360,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.feedback_outlined,
         title: 'Feedback',
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const FeedbackPage()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const FeedbackPage()));
         },
       ),
       _ProfileTile(
@@ -1236,9 +1370,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.info_outline,
         title: 'About Us',
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const AboutUsPage()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AboutUsPage()));
         },
       ),
       _ProfileTile(
@@ -1674,11 +1808,14 @@ class _DoctorAppointmentCard extends StatelessWidget {
     final rating = 4.5 + (appointment.id.hashCode % 5) / 10;
     final start = appointment.startTime.toLocal();
     final end = appointment.endTime.toLocal();
-    
+
     // Format date
-    final dateText = '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
-    final startTimeText = '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
-    final endTimeText = '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
+    final dateText =
+        '${start.day.toString().padLeft(2, '0')}/${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final startTimeText =
+        '${start.hour > 12 ? start.hour - 12 : start.hour}:${start.minute.toString().padLeft(2, '0')} ${start.hour >= 12 ? 'PM' : 'AM'}';
+    final endTimeText =
+        '${end.hour > 12 ? end.hour - 12 : end.hour}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1788,10 +1925,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
                   ),
                   child: const Text(
                     'Message',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                   ),
                 ),
               ),
@@ -1812,10 +1946,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
                   ),
                   child: const Text(
                     'View Details',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
                 ),
               ),

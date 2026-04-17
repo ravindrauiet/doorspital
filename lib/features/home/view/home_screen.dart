@@ -116,11 +116,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                           const SizedBox(height: 25),
-                          // Doorstep Service Section
+                          // Adult Care Services Section
                           const Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'Doorstep Service',
+                              'Adult Care Services',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -137,12 +137,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSpacing: 10,
                               childAspectRatio: 0.85,
                             ),
-                            itemCount: 3,
+                            itemCount: 6,
                             itemBuilder: (context, index) {
                               final services = [
-                                {'name': 'Elderly Care', 'image': 'assets/images/Elderly Care copy.png'},
-                                {'name': 'Vet Care', 'image': 'assets/images/Home Doctor copy.png'}, // Placeholder image
-                                {'name': 'Nursing & Caring', 'image': 'assets/images/Nursing & Caring copy.png'},
+                                {'name': 'Adult Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
+                                {'name': 'Adult Home care 24/7', 'image': 'assets/images/Nursing & Caring copy.png'},
+                                {'name': 'Home Doctor Visits', 'image': 'assets/images/Home Doctor copy.png'},
+                                {'name': 'Chronic Disease Management', 'image': 'assets/images/checkup.png'},
+                                {'name': 'Nursing Care at Home', 'image': 'assets/images/Nursing & Caring copy.png'},
+                                {'name': 'Elderly Care Support', 'image': 'assets/images/Elderly Care copy.png'},
                               ];
                                 return GestureDetector(
                                   onTap: () {

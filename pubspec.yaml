@@ -51,6 +51,10 @@ dependencies:
   flutter_map: ^6.1.0
   latlong2: ^0.9.1
   flutter_local_notifications: ^18.0.1
+  firebase_core: ^4.2.1
+  firebase_messaging: ^16.0.4
+  url_launcher: ^6.3.1
+  font_awesome_flutter: ^10.8.0
 
 dev_dependencies:
   flutter_test:

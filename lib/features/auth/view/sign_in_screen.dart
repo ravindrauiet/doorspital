@@ -1,12 +1,11 @@
 import 'package:door/features/components/custom_appbar.dart';
 import 'package:door/features/components/custom_elevated_button.dart';
 import 'package:door/features/components/custom_textfeild.dart';
-import 'package:door/features/auth/components/socian_button.dart';
 import 'package:door/main.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/services/auth_service.dart';
+import 'package:door/services/local_notification_manager.dart';
 import 'package:door/services/models/auth_models.dart';
-import 'package:door/utils/images/images.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -41,10 +40,15 @@ class _SignInScreenState extends State<SignInScreen> {
 
       if (!mounted) return;
 
-      print('📥 Sign in response - success: ${response.success}, data: ${response.data}');
-      
+      print(
+        '📥 Sign in response - success: ${response.success}, data: ${response.data}',
+      );
+
       if (response.success && response.data != null) {
         print('✅ Sign in successful, navigating to home');
+        LocalNotificationManager().startPolling(
+          interval: const Duration(seconds: 30),
+        );
         // Successfully signed in
         context.pushReplacementNamed(RouteConstants.bottomNavBarScreen);
       } else {
@@ -69,9 +73,7 @@ class _SignInScreenState extends State<SignInScreen> {
       SnackBar(
         content: Row(
           children: [
-            Expanded(
-              child: Text(message),
-            ),
+            Expanded(child: Text(message)),
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white, size: 20),
               padding: EdgeInsets.zero,

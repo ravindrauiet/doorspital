@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "815229293734",
+    "project_id": "doorspitals-9edbc",
+    "storage_bucket": "doorspitals-9edbc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:815229293734:android:0f1d539df558bd433b1067",
+        "android_client_info": {
+          "package_name": "com.company.doorspitals"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPYh_VNEGWjhtAsMIMhUDbWtwLMeYrsA4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
