@@ -42,6 +42,7 @@ class Doctor {
   final bool? isActive;
   final String? about;
   final String? qualification;
+  final List<String> services;
 
   Doctor({
     required this.id,
@@ -54,6 +55,7 @@ class Doctor {
     this.isActive,
     this.about,
     this.qualification,
+    this.services = const [],
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
@@ -90,6 +92,11 @@ class Doctor {
       isActive: json['isActive'],
       about: json['about'],
       qualification: json['qualification'],
+      services:
+          (json['services'] as List<dynamic>?)
+              ?.map((item) => item.toString())
+              .toList() ??
+          const [],
     );
   }
 }
