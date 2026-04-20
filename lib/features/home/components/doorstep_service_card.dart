@@ -13,6 +13,10 @@ class DoorstepServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageProvider = imagePath.trim();
+    final isNetworkImage =
+        imageProvider.startsWith('http://') || imageProvider.startsWith('https://');
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -21,43 +25,51 @@ class DoorstepServiceCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            flex: 3,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.teal.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  imagePath,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: AppColors.teal,
-                        size: 28,
-                      ),
-                    );
-                  },
-                ),
-              ),
+          Container(
+            height: 72,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.teal.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child:
+                imageProvider.isEmpty
+                    ? const _ImageFallback()
+                    : ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child:
+                          isNetworkImage
+                              ? Image.network(
+                                imageProvider,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) =>
+                                        const _ImageFallback(),
+                              )
+                              : Image.asset(
+                                imageProvider,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) =>
+                                        const _ImageFallback(),
+                              ),
+                    ),
           ),
           const SizedBox(height: 6),
-          Flexible(
-            flex: 1,
+          Expanded(
             child: Text(
               name,
               textAlign: TextAlign.center,
+              textHeightBehavior: const TextHeightBehavior(
+                applyHeightToFirstAscent: false,
+                applyHeightToLastDescent: false,
+              ),
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
+                height: 1.2,
                 color: Colors.black87,
               ),
               maxLines: 2,
@@ -65,6 +77,21 @@ class DoorstepServiceCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ImageFallback extends StatelessWidget {
+  const _ImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Icon(
+        Icons.image_not_supported,
+        color: AppColors.teal,
+        size: 28,
       ),
     );
   }

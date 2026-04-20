@@ -30,7 +30,10 @@ class BottomNavBar extends StatelessWidget {
 
         return Scaffold(
           body: pages[provider.currentIndex],
-          floatingActionButton: _WhatsAppFAB(),
+          floatingActionButton: const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: _WhatsAppFAB(),
+          ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: BottomNavigationBar(
             items: const <BottomNavigationBarItem>[

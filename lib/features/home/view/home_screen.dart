@@ -3,15 +3,17 @@ import 'package:door/features/home/components/doorstep_service_card.dart'; // Im
 import 'package:door/services/article_service.dart';
 import 'package:door/services/models/article_model.dart';
 import 'package:door/features/home/components/article_card.dart';
-import 'package:door/features/home/components/home_search_feild.dart';
 import 'package:door/features/home/components/home_banner.dart';
+import 'package:door/features/home/provider/bottom_navbar_provider.dart';
+import 'package:door/features/doorstep_service/models/doorstep_content_model.dart';
+import 'package:door/features/doorstep_service/services/doorstep_content_service.dart';
 import 'package:door/routes/route_constants.dart';
-import 'package:door/services/auth_service.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:door/utils/images/images.dart';
 import 'package:door/services/give_service_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,12 +23,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _authService = AuthService();
   final _articleService = ArticleService();
+  final _doorstepContentService = DoorstepContentService();
   final _giveServiceService = GiveServiceService();
-  String _userName = 'User';
   bool _loading = true;
   List<Article> _articles = [];
+  DoorstepPageContent? _doorstepContent;
 
   @override
   void initState() {
@@ -35,14 +37,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final user = await _authService.getCurrentUser();
     final articleResponse = await _articleService.getArticles();
+    final doorstepResponse = await _doorstepContentService.getDoorstepContent();
     
     if (mounted) {
       setState(() {
-        _userName = user?.userName ?? 'User';
         if (articleResponse.success && articleResponse.data != null) {
           _articles = articleResponse.data!;
+        }
+        if (doorstepResponse.success && doorstepResponse.data != null) {
+          _doorstepContent = doorstepResponse.data!;
         }
         _loading = false;
       });
@@ -51,6 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomOverlayClearance =
+        MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight + 88;
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -58,10 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               HomeBanner(
                 onBookService: () {
-                   context.pushNamed(
-                     RouteConstants.doorstepServiceDetailsScreen,
-                     extra: 'Elderly Care',
-                   );
+                  context.read<BottomNavbarProvider>().updateIndex(1);
                 },
                 onGiveService: _showGiveServiceForm,
                 onSupport: () => context.pushNamed(RouteConstants.helpCenterScreen),
@@ -116,52 +120,60 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                           const SizedBox(height: 25),
-                          // Adult Care Services Section
-                          const Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Adult Care Services',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
+                          if ((_doorstepContent?.homeSectionVisible ?? false) &&
+                              (_doorstepContent?.homeServices.isNotEmpty ?? false)) ...[
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                _doorstepContent!.homeSectionTitle,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: 0.85,
-                            ),
-                            itemCount: 6,
-                            itemBuilder: (context, index) {
-                              final services = [
-                                {'name': 'Adult Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
-                                {'name': 'Adult Home care 24/7', 'image': 'assets/images/Nursing & Caring copy.png'},
-                                {'name': 'Home Doctor Visits', 'image': 'assets/images/Home Doctor copy.png'},
-                                {'name': 'Chronic Disease Management', 'image': 'assets/images/checkup.png'},
-                                {'name': 'Nursing Care at Home', 'image': 'assets/images/Nursing & Caring copy.png'},
-                                {'name': 'Elderly Care Support', 'image': 'assets/images/Elderly Care copy.png'},
-                              ];
+                            if (_doorstepContent!.homeSectionSubtitle.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _doorstepContent!.homeSectionSubtitle,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                                mainAxisExtent: 140,
+                              ),
+                              itemCount: _doorstepContent!.homeServices.length,
+                              itemBuilder: (context, index) {
+                                final service = _doorstepContent!.homeServices[index];
                                 return GestureDetector(
                                   onTap: () {
                                     context.pushNamed(
                                       RouteConstants.doorstepServiceDetailsScreen,
-                                      extra: services[index]['name'] as String,
+                                      extra: service.serviceKey,
                                     );
                                   },
                                   child: DoorstepServiceCard(
-                                    name: services[index]['name'] as String,
-                                    imagePath: services[index]['image'] as String,
+                                    name: service.title,
+                                    imagePath: service.cardImage,
                                   ),
                                 );
-                            },
-                          ),
-                          const SizedBox(height: 25),
+                              },
+                            ),
+                            const SizedBox(height: 25),
+                          ],
                           // Hospital Departments Section
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -184,15 +196,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 4),
                           // Departments Grid
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: 0.85,
-                            ),
+                           GridView.builder(
+                             shrinkWrap: true,
+                             physics: const NeverScrollableScrollPhysics(),
+                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                               crossAxisCount: 3,
+                               crossAxisSpacing: 10,
+                               mainAxisSpacing: 10,
+                               mainAxisExtent: 140,
+                             ),
                             itemCount: 9,
                             itemBuilder: (context, index) {
                               final departments = [
@@ -214,47 +226,45 @@ class _HomeScreenState extends State<HomeScreen> {
                                   RouteConstants.topDoctorsScreen,
                                   extra: dept['name'],
                                 ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade200),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Expanded(
-                                        flex: 3,
-                                        child: Container(
-                                          width: double.infinity,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade50,
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(10),
-                                            child: Image.asset(
-                                              dept['image']!,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => const Center(
-                                                child: Icon(Icons.image_not_supported, color: Colors.grey),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Flexible(
-                                        flex: 1,
-                                        child: Text(
-                                          dept['name']!,
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.black87,
-                                          ),
+                                 child: Container(
+                                   padding: const EdgeInsets.all(8),
+                                   decoration: BoxDecoration(
+                                     color: Colors.white,
+                                     borderRadius: BorderRadius.circular(12),
+                                     border: Border.all(color: Colors.grey.shade200),
+                                   ),
+                                   child: Column(
+                                     crossAxisAlignment: CrossAxisAlignment.stretch,
+                                     children: [
+                                       Container(
+                                         height: 72,
+                                         width: double.infinity,
+                                         decoration: BoxDecoration(
+                                           color: Colors.grey.shade50,
+                                           borderRadius: BorderRadius.circular(10),
+                                         ),
+                                         child: ClipRRect(
+                                           borderRadius: BorderRadius.circular(10),
+                                           child: Image.asset(
+                                             dept['image']!,
+                                             fit: BoxFit.cover,
+                                             errorBuilder: (_, __, ___) => const Center(
+                                               child: Icon(Icons.image_not_supported, color: Colors.grey),
+                                             ),
+                                           ),
+                                         ),
+                                       ),
+                                       const SizedBox(height: 6),
+                                       Expanded(
+                                         child: Text(
+                                           dept['name']!,
+                                           textAlign: TextAlign.center,
+                                           style: const TextStyle(
+                                             fontSize: 11,
+                                             fontWeight: FontWeight.w500,
+                                             height: 1.2,
+                                             color: Colors.black87,
+                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -456,7 +466,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           // Terms & Privacy Footer
 
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 10, 4, 30),
+                            padding: EdgeInsets.fromLTRB(
+                              4,
+                              10,
+                              4,
+                              bottomOverlayClearance,
+                            ),
                             child: Row(
                               children: [
                                 Expanded(
