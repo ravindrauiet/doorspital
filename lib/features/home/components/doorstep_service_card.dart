@@ -25,6 +25,7 @@ class DoorstepServiceCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
@@ -58,23 +59,21 @@ class DoorstepServiceCard extends StatelessWidget {
                     ),
           ),
           const SizedBox(height: 6),
-          Expanded(
-            child: Text(
-              name,
-              textAlign: TextAlign.center,
-              textHeightBehavior: const TextHeightBehavior(
-                applyHeightToFirstAscent: false,
-                applyHeightToLastDescent: false,
-              ),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                height: 1.2,
-                color: Colors.black87,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            textHeightBehavior: const TextHeightBehavior(
+              applyHeightToFirstAscent: false,
+              applyHeightToLastDescent: false,
             ),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: Colors.black87,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
