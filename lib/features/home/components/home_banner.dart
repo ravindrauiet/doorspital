@@ -5,6 +5,11 @@ import 'package:door/features/home/components/home_search_feild.dart';
 
 class HomeBanner extends StatelessWidget {
   final double height;
+  final String backgroundImage;
+  final String bookServiceLabel;
+  final String giveServiceLabel;
+  final String supportLabel;
+  final String searchPlaceholder;
   final VoidCallback? onBookService;
   final VoidCallback? onGiveService;
   final VoidCallback? onSupport;
@@ -14,6 +19,11 @@ class HomeBanner extends StatelessWidget {
   const HomeBanner({
     super.key,
     this.height = 360,
+    this.backgroundImage = 'assets/images/Elderly Care copy.png',
+    this.bookServiceLabel = 'Book a Service',
+    this.giveServiceLabel = 'Give a Service',
+    this.supportLabel = 'Support',
+    this.searchPlaceholder = 'Search doctor, drugs, articles...',
     this.onBookService,
     this.onGiveService,
     this.onSupport,
@@ -23,6 +33,10 @@ class HomeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNetworkImage =
+        backgroundImage.startsWith('http://') ||
+        backgroundImage.startsWith('https://');
+
     // Total height = Image Height (no overlap)
     return SizedBox(
       height: height, 
@@ -34,9 +48,12 @@ class HomeBanner extends StatelessWidget {
           Container(
             height: height,
             width: double.infinity,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/Elderly Care copy.png'),
+                image:
+                    isNetworkImage
+                        ? NetworkImage(backgroundImage)
+                        : AssetImage(backgroundImage) as ImageProvider,
                 fit: BoxFit.cover,
               ),
             ),
@@ -55,26 +72,26 @@ class HomeBanner extends StatelessWidget {
                   child: Center(
                     child: GestureDetector(
                       onTap: onPlay,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(50),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                        child: Container(
-                          height: 60,
-                          width: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.2),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.5),
-                              width: 1.5,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(50),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                          child: Container(
+                            height: 60,
+                            width: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withOpacity(0.2),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.5),
+                                width: 1.5,
+                              ),
                             ),
-                          ),
-                          child: const Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 32,
-                          ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
                           ),
                         ),
                       ),
@@ -108,9 +125,9 @@ class HomeBanner extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                child: const Center(
+                                child: Center(
                                   child: Text(
-                                    'Book a Service',
+                                    bookServiceLabel,
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -139,9 +156,9 @@ class HomeBanner extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                child: const Center(
+                                child: Center(
                                   child: Text(
-                                    'Give a Service',
+                                    giveServiceLabel,
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -173,9 +190,9 @@ class HomeBanner extends StatelessWidget {
                                   width: 1,
                                 ),
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
-                                  'Support',
+                                  supportLabel,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -201,6 +218,7 @@ class HomeBanner extends StatelessWidget {
             right: 20,
             child: SearchField(
               onTap: onSearchTap,
+              hint: searchPlaceholder,
             ),
           ),
         ],

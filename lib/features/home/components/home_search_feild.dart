@@ -4,7 +4,13 @@ import 'package:flutter/material.dart';
 
 class SearchField extends StatelessWidget {
   final VoidCallback? onTap;
-  const SearchField({super.key, this.onTap});
+  final String hint;
+
+  const SearchField({
+    super.key,
+    this.onTap,
+    this.hint = "Search doctor, drugs, articles...",
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +44,7 @@ class SearchField extends StatelessWidget {
         borderRadius: BorderRadius.circular(50),
         child: CustomTextField(
           radius: 50,
-          hint: "Search doctor, drugs, articles...",
+          hint: hint,
           fillColor: Colors.white,
           readOnly: true, // Make it act like a button
           onTap: onTap, // Handled by CustomTextField -> TextFormField

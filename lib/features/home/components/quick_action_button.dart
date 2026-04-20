@@ -1,5 +1,3 @@
-import 'package:door/main.dart';
-import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
 
 class QuickAction extends StatelessWidget {
@@ -18,6 +16,9 @@ class QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNetworkImage =
+        image.startsWith('http://') || image.startsWith('https://');
+
     return SizedBox(
       width: 100, // Fixed width for better consistency
       child: GestureDetector(
@@ -37,11 +38,31 @@ class QuickAction extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: Color(0xFF16A085), // Darker teal for icon bg
                 ),
-                child: Image.asset(
-                  image, 
-                  height: 24, 
-                  color: Colors.white, // Assuming icons should be white on teal
-                ),
+                child:
+                    isNetworkImage
+                        ? Image.network(
+                          image,
+                          height: 24,
+                          color: Colors.white,
+                          errorBuilder:
+                              (_, __, ___) => const Icon(
+                                Icons.widgets_outlined,
+                                size: 24,
+                                color: Colors.white,
+                              ),
+                        )
+                        : Image.asset(
+                          image,
+                          height: 24,
+                          color: Colors.white,
+                          errorBuilder:
+                              (_, __, ___) => const Icon(
+                                Icons.widgets_outlined,
+                                size: 24,
+                                color: Colors.white,
+                              ),
+                        ),
+                
               ),
               const SizedBox(height: 12),
               Text(

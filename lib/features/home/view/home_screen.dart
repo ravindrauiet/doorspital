@@ -4,16 +4,18 @@ import 'package:door/services/article_service.dart';
 import 'package:door/services/models/article_model.dart';
 import 'package:door/features/home/components/article_card.dart';
 import 'package:door/features/home/components/home_banner.dart';
+import 'package:door/features/home/models/home_content_model.dart';
 import 'package:door/features/home/provider/bottom_navbar_provider.dart';
+import 'package:door/features/home/services/home_content_service.dart';
 import 'package:door/features/doorstep_service/models/doorstep_content_model.dart';
 import 'package:door/features/doorstep_service/services/doorstep_content_service.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/utils/theme/colors.dart';
-import 'package:door/utils/images/images.dart';
 import 'package:door/services/give_service_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,10 +27,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _articleService = ArticleService();
   final _doorstepContentService = DoorstepContentService();
+  final _homeContentService = HomeContentService();
   final _giveServiceService = GiveServiceService();
   bool _loading = true;
   List<Article> _articles = [];
   DoorstepPageContent? _doorstepContent;
+  HomeContent? _homeContent;
 
   @override
   void initState() {
@@ -39,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     final articleResponse = await _articleService.getArticles();
     final doorstepResponse = await _doorstepContentService.getDoorstepContent();
+    final homeResponse = await _homeContentService.getHomeContent();
     
     if (mounted) {
       setState(() {
@@ -47,6 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         if (doorstepResponse.success && doorstepResponse.data != null) {
           _doorstepContent = doorstepResponse.data!;
+        }
+        if (homeResponse.success && homeResponse.data != null) {
+          _homeContent = homeResponse.data!;
         }
         _loading = false;
       });
@@ -64,14 +72,23 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               HomeBanner(
+                backgroundImage:
+                    _homeContent?.banner.backgroundImage ??
+                    'assets/images/Elderly Care copy.png',
+                bookServiceLabel:
+                    _homeContent?.banner.bookServiceLabel ?? 'Book a Service',
+                giveServiceLabel:
+                    _homeContent?.banner.giveServiceLabel ?? 'Give a Service',
+                supportLabel: _homeContent?.banner.supportLabel ?? 'Support',
+                searchPlaceholder:
+                    _homeContent?.banner.searchPlaceholder ??
+                    'Search doctor, drugs, articles...',
                 onBookService: () {
                   context.read<BottomNavbarProvider>().updateIndex(1);
                 },
                 onGiveService: _showGiveServiceForm,
                 onSupport: () => context.pushNamed(RouteConstants.helpCenterScreen),
-                onPlay: () {
-                  // TODO: Play video
-                },
+                onPlay: _handleBannerVideoTap,
                 onSearchTap: () => context.pushNamed(RouteConstants.globalSearchScreen),
               ),
               
@@ -82,332 +99,169 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // Service Categories (Top Doctors, Pharmacy, Clinic)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              QuickAction(
-                                icon: Icons.emoji_events_outlined,
-                                label: 'Top Doctors',
-                                image: "assets/images/sthetiscope.png",
-                                onTap: () {
-                                  context.pushNamed(
-                                    RouteConstants.topDoctorsScreen,
-                                  );
-                                },
-                              ),
-                              QuickAction(
-                                icon: Icons.local_pharmacy_outlined,
-                                label: 'Pharmacy',
-                                image: "assets/images/pharmacy.png",
-                                onTap: () {
-                                  context.pushNamed(
-                                    RouteConstants.pharmacyHomeScreen,
-                                  );
-                                },
-                              ),
-                              QuickAction(
-                                icon: Icons.home_work_outlined,
-                                label: 'Clinic',
-                                image:
-                                    "assets/images/fa-solid_clinic-medical.png",
-                                onTap: () {
-                                  context.pushNamed(
-                                    RouteConstants.clinicSpecialityScreen,
-                                  );
-                                },
-                              ),
-                            ],
+                    if ((_homeContent?.quickActions.isNotEmpty ?? false)) ...[
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        alignment: WrapAlignment.center,
+                        children:
+                            _homeContent!.quickActions
+                                .where((item) => item.isVisible)
+                                .map(
+                                  (action) => QuickAction(
+                                    icon: Icons.circle,
+                                    label: action.label,
+                                    image: action.image,
+                                    onTap: () => _handleRouteKey(action.routeKey),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                      const SizedBox(height: 25),
+                    ],
+                    if ((_doorstepContent?.homeSectionVisible ?? false) &&
+                        (_doorstepContent?.homeServices.isNotEmpty ?? false)) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _doorstepContent!.homeSectionTitle,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(height: 25),
-                          if ((_doorstepContent?.homeSectionVisible ?? false) &&
-                              (_doorstepContent?.homeServices.isNotEmpty ?? false)) ...[
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                _doorstepContent!.homeSectionTitle,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                        ),
+                      ),
+                      if (_doorstepContent!.homeSectionSubtitle.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _doorstepContent!.homeSectionSubtitle,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
                             ),
-                            if (_doorstepContent!.homeSectionSubtitle.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  _doorstepContent!.homeSectionSubtitle,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 12),
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                                mainAxisExtent: 140,
-                              ),
-                              itemCount: _doorstepContent!.homeServices.length,
-                              itemBuilder: (context, index) {
-                                final service = _doorstepContent!.homeServices[index];
-                                return GestureDetector(
-                                  onTap: () {
-                                    context.pushNamed(
-                                      RouteConstants.doorstepServiceDetailsScreen,
-                                      extra: service.serviceKey,
-                                    );
-                                  },
-                                  child: DoorstepServiceCard(
-                                    name: service.title,
-                                    imagePath: service.cardImage,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 25),
-                          ],
-                          // Hospital Departments Section
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Hospital Departments',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  // Navigate to view all departments/doctors
-                                  context.pushNamed(RouteConstants.topDoctorsScreen);
-                                },
-                                child: const Text('View All'),
-                              ),
-                            ],
                           ),
-                          const SizedBox(height: 4),
-                          // Departments Grid
-                           GridView.builder(
-                             shrinkWrap: true,
-                             physics: const NeverScrollableScrollPhysics(),
-                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                               crossAxisCount: 3,
-                               crossAxisSpacing: 10,
-                               mainAxisSpacing: 10,
-                               mainAxisExtent: 140,
-                             ),
-                            itemCount: 9,
-                            itemBuilder: (context, index) {
-                              final departments = [
-                                {'name': 'Dental', 'image': 'assets/images/dental_dept.png'}, 
-                                {'name': 'OPD', 'image': 'assets/images/opd_dept.png'},
-                                {'name': 'Skin', 'image': 'assets/images/skin_dept.png'},
-                                {'name': 'ENT', 'image': 'assets/images/ent_dept.png'},
-                                {'name': 'Ortho', 'image': 'assets/images/ortho_dept.png'},
-                                {'name': 'Home Doctor', 'image': 'assets/images/Home Doctor copy.png'},
-                                {'name': 'Physiotherapy', 'image': 'assets/images/Physiotherapy copy.png'},
-                                {'name': 'Yoga Trainer', 'image': 'assets/images/Yoga Trainer copy.png'},
-                                {'name': 'Blood Test', 'image': 'assets/images/Blood Test copy.png'},
-                              ];
-                              
-                              final dept = departments[index];
-                              
-                              return GestureDetector(
-                                onTap: () => context.pushNamed(
-                                  RouteConstants.topDoctorsScreen,
-                                  extra: dept['name'],
-                                ),
-                                 child: Container(
-                                   padding: const EdgeInsets.all(8),
-                                   decoration: BoxDecoration(
-                                     color: Colors.white,
-                                     borderRadius: BorderRadius.circular(12),
-                                     border: Border.all(color: Colors.grey.shade200),
-                                   ),
-                                   child: Column(
-                                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                                     children: [
-                                       Container(
-                                         height: 72,
-                                         width: double.infinity,
-                                         decoration: BoxDecoration(
-                                           color: Colors.grey.shade50,
-                                           borderRadius: BorderRadius.circular(10),
-                                         ),
-                                         child: ClipRRect(
-                                           borderRadius: BorderRadius.circular(10),
-                                           child: Image.asset(
-                                             dept['image']!,
-                                             fit: BoxFit.cover,
-                                             errorBuilder: (_, __, ___) => const Center(
-                                               child: Icon(Icons.image_not_supported, color: Colors.grey),
-                                             ),
-                                           ),
-                                         ),
-                                       ),
-                                       const SizedBox(height: 6),
-                                       Expanded(
-                                         child: Text(
-                                           dept['name']!,
-                                           textAlign: TextAlign.center,
-                                           style: const TextStyle(
-                                             fontSize: 11,
-                                             fontWeight: FontWeight.w500,
-                                             height: 1.2,
-                                             color: Colors.black87,
-                                           ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          mainAxisExtent: 140,
+                        ),
+                        itemCount: _doorstepContent!.homeServices.length,
+                        itemBuilder: (context, index) {
+                          final service = _doorstepContent!.homeServices[index];
+                          return GestureDetector(
+                            onTap: () {
+                              context.pushNamed(
+                                RouteConstants.doorstepServiceDetailsScreen,
+                                extra: service.serviceKey,
                               );
                             },
-                          ),
-                          const SizedBox(height: 12),
-                          // Most Booked Services Section
-                          const Text(
-                            'Most Booked Services',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
+                            child: DoorstepServiceCard(
+                              name: service.title,
+                              imagePath: service.cardImage,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 25),
+                    ],
+                    if (_homeContent?.departmentsSection.isVisible ?? false) ...[
+                      _buildSectionHeader(
+                        _homeContent!.departmentsSection.title,
+                        _homeContent!.departmentsSection.ctaText,
+                        () => _handleRouteKey('top-doctors'),
+                      ),
+                      if (_homeContent!.departmentsSection.subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _homeContent!.departmentsSection.subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 180,
-                            child: ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: [
-                                _MostBookedServiceCard(
-                                  title: 'Post-Operative Care',
-                                  description: 'Professional care after your surgery for a smooth recovery.',
-                                  image: 'assets/images/checkup.png',
-                                ),
-                                const SizedBox(width: 12),
-                                _MostBookedServiceCard(
-                                  title: 'Vaccination',
-                                  description: 'Get your required vaccinations without leaving home.',
-                                  image: 'assets/images/doctor.png',
-                                ),
-                              ],
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          mainAxisExtent: 140,
+                        ),
+                        itemCount: _homeContent!.departmentsSection.items.length,
+                        itemBuilder: (context, index) {
+                          final item = _homeContent!.departmentsSection.items[index];
+                          return _HomeGridCard(
+                            title: item.title,
+                            image: item.image,
+                            onTap: () => _handleRouteKey(item.routeKey),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_homeContent?.mostBookedSection.isVisible ?? false) ...[
+                      _buildSectionHeader(_homeContent!.mostBookedSection.title),
+                      if (_homeContent!.mostBookedSection.subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _homeContent!.mostBookedSection.subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                          const SizedBox(height: 25),
-                          // Wellness Banner
-                          Container(
-                            width: double.infinity,
-                            height: 150,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF2F49D0), Color(0xFF18C2A5)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
-                              child: Stack(
-                                children: [
-                                  // Right side illustration
-                                  Align(
-                                    alignment: Alignment.bottomRight,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        right: 12,
-                                        bottom: 4,
-                                      ),
-                                      child: Image.asset(
-                                        Images.medicine,
-                                        height: 130,
-                                        fit: BoxFit.contain,
-                                      ),
-                                    ),
-                                  ),
-                                    // Left side text
-                                    Positioned(
-                                      left: 0,
-                                      top: 0,
-                                      bottom: 0,
-                                      right: 140, // Constraint to avoid image overlap
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 18,
-                                          vertical: 20,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Text(
-                                              'Stay on top of your health',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            const Text(
-                                              'Book doorstep services, video, medicines.',
-                                              style: TextStyle(
-                                                color: Colors.white70,
-                                                fontSize: 13,
-                                                ),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 3,
-                                            ),
-                                            const SizedBox(height: 14),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 14,
-                                                vertical: 8,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius: BorderRadius.circular(20),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: const [
-                                                  Icon(
-                                                    Icons.calendar_today_outlined,
-                                                    size: 16,
-                                                    color: Color(0xFF2F49D0),
-                                                  ),
-                                                  SizedBox(width: 6),
-                                                  Text(
-                                                    'Book Now',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: Color(0xFF2F49D0),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 25),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 180,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _homeContent!.mostBookedSection.items.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final item = _homeContent!.mostBookedSection.items[index];
+                            return _MostBookedServiceCard(
+                              title: item.title,
+                              description: item.description,
+                              image: item.image,
+                              onTap: () => _handleRouteKey(item.routeKey),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+                    ],
+                    if (_homeContent?.promoBanner.isVisible ?? false) ...[
+                      _HomePromoBannerCard(
+                        eyebrow: _homeContent!.promoBanner.eyebrow,
+                        title: _homeContent!.promoBanner.title,
+                        description: _homeContent!.promoBanner.description,
+                        image: _homeContent!.promoBanner.image,
+                        buttonText: _homeContent!.promoBanner.buttonText,
+                        startColor: _parseHexColor(_homeContent!.promoBanner.startColor),
+                        endColor: _parseHexColor(_homeContent!.promoBanner.endColor),
+                        onTap: () => _handleRouteKey(_homeContent!.promoBanner.routeKey),
+                      ),
+                      const SizedBox(height: 25),
+                    ],
                           // Health Articles Section
                           Row(
                             children: [
@@ -578,6 +432,88 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildSectionHeader(
+    String title, [
+    String ctaText = '',
+    VoidCallback? onTap,
+  ]) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+        ),
+        if (ctaText.isNotEmpty)
+          GestureDetector(
+            onTap: onTap,
+            child: Text(
+              ctaText,
+              style: const TextStyle(
+                color: AppColors.teal,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _handleBannerVideoTap() async {
+    final videoUrl = _homeContent?.banner.videoUrl.trim() ?? '';
+    if (videoUrl.isEmpty) return;
+
+    final uri = Uri.tryParse(videoUrl);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _handleRouteKey(String routeKey) {
+    final value = routeKey.trim();
+    if (value.isEmpty) return;
+
+    if (value == 'top-doctors') {
+      context.pushNamed(RouteConstants.topDoctorsScreen);
+      return;
+    }
+    if (value == 'pharmacy') {
+      context.pushNamed(RouteConstants.pharmacyHomeScreen);
+      return;
+    }
+    if (value == 'clinic') {
+      context.pushNamed(RouteConstants.clinicSpecialityScreen);
+      return;
+    }
+    if (value == 'services') {
+      context.read<BottomNavbarProvider>().updateIndex(1);
+      return;
+    }
+    if (value.startsWith('department:')) {
+      final departmentName = value.substring('department:'.length).trim();
+      context.pushNamed(RouteConstants.topDoctorsScreen, extra: departmentName);
+      return;
+    }
+    if (value.startsWith('doorstep:')) {
+      final serviceKey = value.substring('doorstep:'.length).trim();
+      context.pushNamed(
+        RouteConstants.doorstepServiceDetailsScreen,
+        extra: serviceKey,
+      );
+      return;
+    }
+    if (value.startsWith('service:')) {
+      context.read<BottomNavbarProvider>().updateIndex(1);
+    }
+  }
+
+  Color _parseHexColor(String value) {
+    final clean =
+        value.replaceAll('#', '').trim().padLeft(6, '0').toUpperCase();
+    final normalized = clean.length == 6 ? 'FF$clean' : clean;
+    return Color(int.tryParse(normalized, radix: 16) ?? 0xFF2F49D0);
   }
 
   void _showGiveServiceForm() {
@@ -766,81 +702,333 @@ class _MostBookedServiceCard extends StatelessWidget {
   final String title;
   final String description;
   final String image;
+  final VoidCallback? onTap;
 
   const _MostBookedServiceCard({
     required this.title,
     required this.description,
     required this.image,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 280,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              bottomLeft: Radius.circular(16),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 280,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Image.asset(
-              image,
-              width: 100,
-              height: 180,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: _RemoteOrAssetImage(
+                path: image,
                 width: 100,
                 height: 180,
-                color: Colors.grey.shade200,
-                child: const Icon(Icons.image, color: Colors.grey),
+                fit: BoxFit.cover,
               ),
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _HomeGridCard extends StatelessWidget {
+  final String title;
+  final String image;
+  final VoidCallback? onTap;
+
+  const _HomeGridCard({
+    required this.title,
+    required this.image,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 72,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: _RemoteOrAssetImage(path: image, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  height: 1.2,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomePromoBannerCard extends StatelessWidget {
+  final String eyebrow;
+  final String title;
+  final String description;
+  final String image;
+  final String buttonText;
+  final Color startColor;
+  final Color endColor;
+  final VoidCallback? onTap;
+
+  const _HomePromoBannerCard({
+    required this.eyebrow,
+    required this.title,
+    required this.description,
+    required this.image,
+    required this.buttonText,
+    required this.startColor,
+    required this.endColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 150,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            colors: [startColor, endColor],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            children: [
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12, bottom: 4),
+                  child: SizedBox(
+                    width: 120,
+                    height: 130,
+                    child: _RemoteOrAssetImage(path: image, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                right: 130,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (eyebrow.isNotEmpty)
+                        Text(
+                          eyebrow,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      if (eyebrow.isNotEmpty) const SizedBox(height: 6),
+                      if (title.isNotEmpty)
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (title.isNotEmpty) const SizedBox(height: 6),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_outlined,
+                              size: 16,
+                              color: Color(0xFF2F49D0),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              buttonText,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF2F49D0),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RemoteOrAssetImage extends StatelessWidget {
+  final String path;
+  final BoxFit fit;
+  final double? width;
+  final double? height;
+
+  const _RemoteOrAssetImage({
+    required this.path,
+    this.fit = BoxFit.cover,
+    this.width,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath = path.trim();
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return Image.network(
+        imagePath,
+        fit: fit,
+        width: width,
+        height: height,
+        errorBuilder:
+            (_, __, ___) => _ImageFallback(width: width, height: height),
+      );
+    }
+
+    if (imagePath.isEmpty) {
+      return _ImageFallback(width: width, height: height);
+    }
+
+    return Image.asset(
+      imagePath,
+      fit: fit,
+      width: width,
+      height: height,
+      errorBuilder:
+          (_, __, ___) => _ImageFallback(width: width, height: height),
+    );
+  }
+}
+
+class _ImageFallback extends StatelessWidget {
+  final double? width;
+  final double? height;
+
+  const _ImageFallback({this.width, this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.image_not_supported, color: Colors.grey),
     );
   }
 }
