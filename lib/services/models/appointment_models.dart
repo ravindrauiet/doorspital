@@ -58,6 +58,7 @@ class Appointment {
   final String? reason;
   final String mode;
   final String status;
+  final String? requestOtp;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -71,6 +72,7 @@ class Appointment {
     this.reason,
     required this.mode,
     required this.status,
+    this.requestOtp,
     this.createdAt,
     this.updatedAt,
   });
@@ -110,6 +112,7 @@ class Appointment {
       reason: json['reason'],
       mode: json['mode'] ?? 'online',
       status: json['status'] ?? 'pending',
+      requestOtp: json['requestOtp']?.toString(),
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
           : null,

@@ -35,28 +35,23 @@ class DoorstepServiceCard extends StatelessWidget {
               color: AppColors.teal.withOpacity(0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child:
-                imageProvider.isEmpty
+            child: imageProvider.isEmpty
                     ? const _ImageFallback()
                     : ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child:
-                          isNetworkImage
-                              ? Image.network(
-                                imageProvider,
-                                fit: BoxFit.cover,
-                                errorBuilder:
-                                    (context, error, stackTrace) =>
-                                        const _ImageFallback(),
-                              )
-                              : Image.asset(
-                                imageProvider,
-                                fit: BoxFit.cover,
-                                errorBuilder:
-                                    (context, error, stackTrace) =>
-                                        const _ImageFallback(),
-                              ),
-                    ),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            image: DecorationImage(
+                              image: isNetworkImage ? NetworkImage(imageProvider) : AssetImage(imageProvider) as ImageProvider,
+                              fit: BoxFit.cover,
+                              onError: (exception, stackTrace) {},
+                            ),
+                          ),
+                        ),
+                      ),
           ),
           const SizedBox(height: 6),
           Text(

@@ -3,12 +3,18 @@ import 'package:door/features/doorstep_service/services/doorstep_content_service
 import 'package:door/features/home/provider/bottom_navbar_provider.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/services/doctor_service.dart';
+import 'package:door/services/nurse_service.dart';
+import 'package:door/services/api_client.dart';
+import 'package:door/services/profile_service.dart';
+import 'package:door/services/service_request_service.dart';
 import 'package:door/services/models/doctor_models.dart';
+import 'package:door/services/models/nurse_models.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DoorstepServiceDetailsScreen extends StatefulWidget {
   final String serviceId;
@@ -22,13 +28,20 @@ class DoorstepServiceDetailsScreen extends StatefulWidget {
 
 class _DoorstepServiceDetailsScreenState
     extends State<DoorstepServiceDetailsScreen> {
+  static const String _supportPhoneNumber = '+919837715111';
+  static const String _supportWhatsAppNumber = '919837715111';
+
   final DoorstepContentService _contentService = DoorstepContentService();
   final DoctorService _doctorService = DoctorService();
+  final NurseService _nurseService = NurseService();
+  final ServiceRequestService _serviceRequestService = ServiceRequestService();
+  final ProfileService _profileService = ProfileService();
 
   bool _isLoading = true;
   bool _isSpecialistsLoading = false;
   DoorstepServiceContent? _serviceDetail;
   List<Doctor> _specialists = [];
+  List<PublicNurse> _nurses = [];
   String? _selectedSubCategoryTitle;
 
   @override
@@ -48,18 +61,32 @@ class _DoorstepServiceDetailsScreenState
         throw Exception(detailResponse.message ?? 'Failed to load service details');
       }
 
-      final doctorResponse = await _doctorService.getTopDoctors(
-        service:
-            detail.doctorFilterValue.isNotEmpty
-                ? detail.doctorFilterValue
-                : detail.title,
-      );
+      List<Doctor> doctors = [];
+      List<PublicNurse> nurses = [];
+      if (_isNurseService(detail)) {
+        final nurseResponse = await _nurseService.getPublicNurses(
+          service: detail.title,
+        );
+        nurses = nurseResponse.data ?? [];
+      } else {
+        final doctorResponse = await _doctorService.getTopDoctors(
+          service:
+              _isPhysiotherapyService(detail)
+                  ? 'Physiotherapy'
+                  : (detail.doctorFilterValue.isNotEmpty
+                      ? detail.doctorFilterValue
+                      : detail.title),
+          limit: 20,
+        );
+        doctors = doctorResponse.data ?? [];
+      }
 
       if (!mounted) return;
 
       setState(() {
         _serviceDetail = detail;
-        _specialists = doctorResponse.data ?? [];
+        _specialists = doctors;
+        _nurses = nurses;
         _isLoading = false;
       });
     } catch (_) {
@@ -103,6 +130,525 @@ class _DoorstepServiceDetailsScreenState
     final filterValue =
         detail.doctorFilterValue.isNotEmpty ? detail.doctorFilterValue : detail.title;
     await _loadDoctorsForFilter(filterValue);
+  }
+
+  bool _isNurseService(DoorstepServiceContent detail) {
+    final key = '${detail.serviceKey} ${detail.title} ${detail.doctorFilterValue}'
+        .toLowerCase();
+    return key.contains('nurs') || key.contains('caring');
+  }
+
+  bool _isPhysiotherapyService(DoorstepServiceContent detail) {
+    final key = '${detail.serviceKey} ${detail.title} ${detail.doctorFilterValue}'
+        .toLowerCase();
+    return key.contains('physio');
+  }
+
+  Future<void> _launchCall(String phoneNumber) async {
+    final normalized = phoneNumber.trim();
+    if (normalized.isEmpty) return;
+    final uri = Uri.parse('tel:$normalized');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _launchWhatsApp() async {
+    final uri = Uri.parse('https://wa.me/$_supportWhatsAppNumber');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _launchWhatsAppWithMessage(String message) async {
+    final encoded = Uri.encodeComponent(message);
+    final uri = Uri.parse('https://wa.me/$_supportWhatsAppNumber?text=$encoded');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _openDoctorBooking(String doctorId) {
+    if (doctorId.trim().isEmpty) return;
+    context.pushNamed(RouteConstants.doctorDetailsScreen, extra: doctorId);
+  }
+
+  Future<void> _bookServiceDirectly(DoorstepServiceContent detail) {
+    final isNurseService = _isNurseService(detail);
+    final isPhysiotherapyService = _isPhysiotherapyService(detail);
+
+    return _showServiceRequestSheet(
+      serviceType:
+          isNurseService
+              ? 'nurse'
+              : isPhysiotherapyService
+              ? 'physiotherapy'
+              : 'doctor',
+      serviceKey: detail.serviceKey,
+      serviceTitle: detail.title,
+      providerKind: 'general',
+      providerId: '',
+      providerName: detail.title,
+      providerPhone: _supportPhoneNumber,
+    );
+  }
+
+  Future<void> _showServiceRequestSheet({
+    required String serviceType,
+    required String serviceKey,
+    required String serviceTitle,
+    required String providerKind,
+    required String providerId,
+    required String providerName,
+    required String providerPhone,
+  }) async {
+    final formKey = GlobalKey<FormState>();
+    final selfNameController = TextEditingController();
+    final selfMobileController = TextEditingController();
+    final otherPatientNameController = TextEditingController();
+    final otherPatientMobileController = TextEditingController();
+    final otherRequesterNameController = TextEditingController();
+    final otherRequesterMobileController = TextEditingController();
+    final notesController = TextEditingController();
+    bool isSubmitting = false;
+    bool isLoadingProfile = true;
+    bool isForSelf = true;
+    bool shouldSavePhoneForFuture = false;
+
+    final savedUser = await ApiClient().getUserData();
+    final savedName =
+        savedUser?['userName']?.toString().trim() ??
+        savedUser?['name']?.toString().trim() ??
+        '';
+    final savedPhone = savedUser?['phoneNumber']?.toString().trim() ?? '';
+    selfNameController.text = savedName;
+    selfMobileController.text = savedPhone;
+
+    final token = await ApiClient().getToken();
+    if (token != null && token.isNotEmpty) {
+      final profileResponse = await _profileService.getProfile();
+      final profile = profileResponse.data ?? const {};
+      final profileName = profile['userName']?.toString().trim() ?? savedName;
+      final profilePhone = profile['phoneNumber']?.toString().trim() ?? savedPhone;
+      selfNameController.text = profileName;
+      selfMobileController.text = profilePhone;
+    }
+    isLoadingProfile = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Request ${serviceTitle.trim().isNotEmpty ? serviceTitle : serviceType}',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        providerName.trim().isNotEmpty
+                            ? 'Provider: $providerName'
+                            : 'Submit your request and use the contact number to call directly.',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F5FB),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setStateModal(() {
+                                  isForSelf = true;
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isForSelf ? AppColors.primary : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    'For Myself',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: isForSelf ? Colors.white : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setStateModal(() {
+                                  isForSelf = false;
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        !isForSelf ? AppColors.primary : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    'For Other',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: !isForSelf ? Colors.white : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      if (isLoadingProfile)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (isForSelf) ...[
+                        TextFormField(
+                          controller: selfNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Your Name',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Enter your name'
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: selfMobileController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Mobile Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Enter your mobile number'
+                              : null,
+                        ),
+                      ] else ...[
+                        TextFormField(
+                          controller: otherPatientNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Patient Name',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Enter patient name'
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: otherPatientMobileController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Patient Mobile Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Enter patient mobile number'
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: otherRequesterNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Your Name',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Enter your name'
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: otherRequesterMobileController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Your Mobile Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Enter your mobile number'
+                              : null,
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: notesController,
+                        minLines: 3,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          labelText: 'Notes (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  if (!formKey.currentState!.validate()) return;
+                                  setStateModal(() {
+                                    isSubmitting = true;
+                                  });
+
+                                  final leadName = isForSelf
+                                      ? selfNameController.text.trim()
+                                      : otherPatientNameController.text.trim();
+                                  final leadMobile = isForSelf
+                                      ? selfMobileController.text.trim()
+                                      : otherPatientMobileController.text.trim();
+                                  final requesterName = isForSelf
+                                      ? selfNameController.text.trim()
+                                      : otherRequesterNameController.text.trim();
+                                  final requesterMobile = isForSelf
+                                      ? selfMobileController.text.trim()
+                                      : otherRequesterMobileController.text.trim();
+
+                                  if (isForSelf &&
+                                      savedPhone.isEmpty &&
+                                      leadMobile.isNotEmpty &&
+                                      token != null &&
+                                      token.isNotEmpty) {
+                                    final profileUpdate = await _profileService.updateProfile({
+                                      'phoneNumber': leadMobile,
+                                    });
+                                    if (profileUpdate.success && profileUpdate.data != null) {
+                                      final currentUser = await ApiClient().getUserData() ?? {};
+                                      currentUser['phoneNumber'] = leadMobile;
+                                      await ApiClient().setUserData(currentUser);
+                                      shouldSavePhoneForFuture = true;
+                                    }
+                                  }
+
+                                  final response = await _serviceRequestService.submitRequest(
+                                    ServiceRequestPayload(
+                                      name: leadName,
+                                      mobileNumber: leadMobile,
+                                      requestFor: isForSelf ? 'self' : 'other',
+                                      requesterName: requesterName,
+                                      requesterMobileNumber: requesterMobile,
+                                      serviceType: serviceType,
+                                      serviceKey: serviceKey,
+                                      serviceTitle: serviceTitle,
+                                      providerKind: providerKind,
+                                      providerId: providerId,
+                                      providerName: providerName,
+                                      providerPhone: providerPhone,
+                                      notes: notesController.text.trim(),
+                                    ),
+                                  );
+
+                                  setStateModal(() {
+                                    isSubmitting = false;
+                                  });
+
+                                  if (!mounted || !sheetContext.mounted) return;
+                                  if (response.success) {
+                                    final requestOtp =
+                                        response.data?['requestOtp']?.toString() ?? '';
+                                    final whatsappMessage = [
+                                      'New service request',
+                                      'Service: $serviceTitle',
+                                      'Request Type: ${isForSelf ? 'For Myself' : 'For Other'}',
+                                      'Patient Name: $leadName',
+                                      'Patient Mobile: $leadMobile',
+                                      if (!isForSelf) 'Requester Name: $requesterName',
+                                      if (!isForSelf) 'Requester Mobile: $requesterMobile',
+                                      'Provider: ${providerName.trim().isNotEmpty ? providerName : 'Support'}',
+                                      'OTP: $requestOtp',
+                                      if (notesController.text.trim().isNotEmpty)
+                                        'Notes: ${notesController.text.trim()}',
+                                    ].join('\n');
+                                    Navigator.pop(sheetContext);
+                                    await _showRequestSuccessDialog(
+                                      requestOtp: requestOtp,
+                                      phoneNumber: providerPhone,
+                                      serviceTitle: serviceTitle,
+                                      whatsappMessage: whatsappMessage,
+                                      profileSaved: shouldSavePhoneForFuture,
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          response.message ?? 'Failed to submit request',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Submit Request',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showRequestSuccessDialog({
+    required String requestOtp,
+    required String phoneNumber,
+    required String serviceTitle,
+    required String whatsappMessage,
+    bool profileSaved = false,
+  }) async {
+    if (!mounted) return;
+    final callNumber = phoneNumber.trim().isNotEmpty
+        ? phoneNumber.trim()
+        : _supportPhoneNumber;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Request Submitted for $serviceTitle'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Use this OTP for admin verification or follow-up.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FF),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFD8E0FF)),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Generated OTP',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      requestOtp,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 4,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Contact Number: $callNumber',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (profileSaved) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Your mobile number was saved for future requests.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _launchWhatsAppWithMessage(whatsappMessage);
+              },
+              child: const Text('WhatsApp'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _launchCall(callNumber);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Call Now'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showFullDetails() {
@@ -164,6 +710,9 @@ class _DoorstepServiceDetailsScreenState
     }
 
     final detail = _serviceDetail!;
+    final isNurseService = _isNurseService(detail);
+    final isPhysiotherapyService = _isPhysiotherapyService(detail);
+    final isCallBasedService = isNurseService || isPhysiotherapyService;
     final activeSubCategories =
         detail.subCategories.where((item) => item.isActive).toList();
 
@@ -323,103 +872,136 @@ class _DoorstepServiceDetailsScreenState
                                 _InfoPill(
                                   icon: Icons.groups_rounded,
                                   label:
-                                      _selectedSubCategoryTitle == null
+                                      isCallBasedService
+                                          ? 'Direct contact'
+                                          : _selectedSubCategoryTitle == null
                                           ? 'All specialists'
                                           : _selectedSubCategoryTitle!,
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _bookServiceDirectly(detail),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.calendar_month_outlined),
+                                label: const Text(
+                                  'Book This Service',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE8EBF4)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              detail.whatsIncludedTitle,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
+                      if (detail.showWhatsIncludedSection) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE8EBF4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                detail.whatsIncludedTitle,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            ...detail.whatsIncluded.map(
-                              (item) => Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: 20,
-                                      height: 20,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFE9FBF6),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(
-                                        Icons.check,
-                                        color: AppColors.teal,
-                                        size: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        item,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppColors.textPrimary,
+                              const SizedBox(height: 10),
+                              ...detail.whatsIncluded.map(
+                                (item) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE9FBF6),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          color: AppColors.teal,
+                                          size: 13,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (detail.fullDetails.trim().isNotEmpty &&
-                                detail.detailsCtaText.trim().isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: _showFullDetails,
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.primary,
-                                    side: const BorderSide(
-                                      color: Color(0xFFD9E1FF),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 11,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.article_outlined, size: 16),
-                                  label: Text(
-                                    detail.detailsCtaText,
-                                    style: const TextStyle(fontSize: 12),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          item,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
+                              if (detail.fullDetails.trim().isNotEmpty &&
+                                  detail.detailsCtaText.trim().isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _showFullDetails,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      side: const BorderSide(
+                                        color: Color(0xFFD9E1FF),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 11,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.article_outlined,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      detail.detailsCtaText,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (activeSubCategories.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                      ],
+                      if (detail.showSubCategoriesSection &&
+                          !isCallBasedService &&
+                          activeSubCategories.isNotEmpty) ...[
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -470,15 +1052,78 @@ class _DoorstepServiceDetailsScreenState
                         ),
                         const SizedBox(height: 16),
                       ],
-                      _SectionTitle(
-                        title: detail.availableSpecialistsTitle,
-                        subtitle:
-                            _selectedSubCategoryTitle == null
-                                ? 'Available experts for this service'
-                                : 'Filtered by $_selectedSubCategoryTitle',
-                      ),
-                      const SizedBox(height: 10),
-                      if (_isSpecialistsLoading)
+                      if (detail.showAvailableSpecialistsSection) ...[
+                        _SectionTitle(
+                          title: detail.availableSpecialistsTitle,
+                          subtitle:
+                              isNurseService
+                                  ? 'Active nurses onboarded from admin'
+                                  : isPhysiotherapyService
+                                      ? 'Call, WhatsApp, or book physiotherapy directly'
+                                      : (_selectedSubCategoryTitle == null
+                                          ? 'Available experts for this service'
+                                          : 'Filtered by $_selectedSubCategoryTitle'),
+                        ),
+                        const SizedBox(height: 10),
+                        if (isNurseService && _nurses.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE8EBF4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'No nurse records available right now',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                onPressed: () => _launchCall(_supportPhoneNumber),
+                                icon: const Icon(Icons.call_outlined),
+                                label: const Text('Call Support'),
+                              ),
+                            ],
+                          ),
+                        )
+                        else if (isNurseService)
+                          Column(
+                            children: List.generate(_nurses.length, (index) {
+                              final nurse = _nurses[index];
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom:
+                                      index == _nurses.length - 1 ? 0 : 14,
+                                ),
+                                child: _NurseContactCard(
+                                  nurse: nurse,
+                                  onCall: () => _launchCall(
+                                    nurse.phoneNumber.isNotEmpty
+                                        ? nurse.phoneNumber
+                                        : _supportPhoneNumber,
+                                  ),
+                                  onWhatsApp: _launchWhatsApp,
+                                  onBook: () => _showServiceRequestSheet(
+                                    serviceType: 'nurse',
+                                    serviceKey: detail.serviceKey,
+                                    serviceTitle: detail.title,
+                                    providerKind: 'nurse',
+                                    providerId: nurse.id,
+                                    providerName: nurse.fullName,
+                                    providerPhone:
+                                        nurse.phoneNumber.isNotEmpty
+                                            ? nurse.phoneNumber
+                                            : _supportPhoneNumber,
+                                  ),
+                                ),
+                              );
+                            }),
+                          )
+                      else if (_isSpecialistsLoading)
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 22),
@@ -497,32 +1142,88 @@ class _DoorstepServiceDetailsScreenState
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: const Color(0xFFE8EBF4)),
                           ),
-                          child: const Text(
-                            'No specialists available right now',
-                            style: TextStyle(fontSize: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isPhysiotherapyService
+                                    ? 'No physiotherapy contacts available right now'
+                                    : 'No specialists available right now',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              if (isPhysiotherapyService) ...[
+                                const SizedBox(height: 10),
+                                OutlinedButton.icon(
+                                  onPressed: () => _showServiceRequestSheet(
+                                    serviceType: 'physiotherapy',
+                                    serviceKey: detail.serviceKey,
+                                    serviceTitle: detail.title,
+                                    providerKind: 'general',
+                                    providerId: '',
+                                    providerName: 'Support',
+                                    providerPhone: _supportPhoneNumber,
+                                  ),
+                                  icon: const Icon(Icons.key_outlined),
+                                  label: const Text('Request Physiotherapy'),
+                                ),
+                              ],
+                            ],
                           ),
                         )
-                      else
-                        SizedBox(
-                          height: 158,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.only(bottom: 6),
-                            itemCount: _specialists.length,
-                            separatorBuilder:
-                                (context, index) => const SizedBox(width: 14),
-                            itemBuilder: (context, index) {
+                        else if (isPhysiotherapyService)
+                          Column(
+                            children: List.generate(_specialists.length, (index) {
                               final specialist = _specialists[index];
-                              final name = specialist.name ?? 'Doctor';
-                              final initial =
-                                  name.isNotEmpty ? name[0].toUpperCase() : 'D';
-                              return _SpecialistCard(
+                              final phoneNumber =
+                                  specialist.phoneNumber?.trim().isNotEmpty ==
+                                          true
+                                      ? specialist.phoneNumber!.trim()
+                                      : _supportPhoneNumber;
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom:
+                                      index == _specialists.length - 1 ? 0 : 14,
+                                ),
+                                child: _DoctorContactCard(
+                                  doctor: specialist,
+                                  onCall: () => _launchCall(phoneNumber),
+                                  onWhatsApp: _launchWhatsApp,
+                                  onBook: () => _showServiceRequestSheet(
+                                    serviceType: 'physiotherapy',
+                                    serviceKey: detail.serviceKey,
+                                    serviceTitle: detail.title,
+                                    providerKind: 'doctor',
+                                    providerId: specialist.id,
+                                    providerName:
+                                        specialist.name ??
+                                        'Physiotherapy Specialist',
+                                    providerPhone: phoneNumber,
+                                  ),
+                                ),
+                              );
+                            }),
+                          )
+                      else
+                        Column(
+                          children: List.generate(_specialists.length, (index) {
+                            final specialist = _specialists[index];
+                            final name = specialist.name ?? 'Doctor';
+                            final initial =
+                                name.isNotEmpty ? name[0].toUpperCase() : 'D';
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: index == _specialists.length - 1 ? 0 : 14,
+                              ),
+                              child: _SpecialistCard(
                                 name: name,
                                 initial: initial,
                                 specialization: specialist.specialization,
                                 experienceYears: specialist.experienceYears ?? 0,
-                                rating:
-                                    detail.rating > 0 ? detail.rating : 4.5,
+                                rating: detail.rating > 0 ? detail.rating : 4.5,
+                                width: double.infinity,
+                                onBookAppointment: () =>
+                                    _openDoctorBooking(specialist.id),
+                                onWhatsApp: _launchWhatsApp,
                                 onChoose: () {
                                   context.pushNamed(
                                     RouteConstants
@@ -547,10 +1248,11 @@ class _DoorstepServiceDetailsScreenState
                                     },
                                   );
                                 },
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          }),
                         ),
+                      ],
                       const SizedBox(height: 10),
                     ],
                   ),
@@ -559,6 +1261,253 @@ class _DoorstepServiceDetailsScreenState
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NurseContactCard extends StatelessWidget {
+  final PublicNurse nurse;
+  final VoidCallback onCall;
+  final VoidCallback onWhatsApp;
+  final VoidCallback onBook;
+
+  const _NurseContactCard({
+    required this.nurse,
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = [
+      nurse.qualificationLevel,
+      nurse.specialization,
+      nurse.city,
+    ].where((item) => item.trim().isNotEmpty).join(' • ');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8EBF4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundImage:
+                    nurse.avatarUrl.trim().isNotEmpty ? NetworkImage(nurse.avatarUrl) : null,
+                child: nurse.avatarUrl.trim().isEmpty
+                    ? Text(
+                        nurse.fullName.isNotEmpty ? nurse.fullName[0].toUpperCase() : 'N',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nurse.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${nurse.experienceYears}+ years experience',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitle.isNotEmpty ? subtitle : 'Nursing support',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            nurse.phoneNumber.trim().isNotEmpty ? nurse.phoneNumber : _DoorstepServiceDetailsScreenState._supportPhoneNumber,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onCall,
+                  icon: const Icon(Icons.call_outlined, size: 16),
+                  label: const Text('Call'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 40,
+                width: 44,
+                child: OutlinedButton(
+                  onPressed: onWhatsApp,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Icon(Icons.chat, size: 18),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onBook,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Book Now'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DoctorContactCard extends StatelessWidget {
+  final Doctor doctor;
+  final VoidCallback onCall;
+  final VoidCallback onWhatsApp;
+  final VoidCallback onBook;
+
+  const _DoctorContactCard({
+    required this.doctor,
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final phoneNumber =
+        doctor.phoneNumber?.trim().isNotEmpty == true
+            ? doctor.phoneNumber!.trim()
+            : _DoorstepServiceDetailsScreenState._supportPhoneNumber;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8EBF4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            doctor.name ?? 'Physiotherapy Specialist',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            doctor.specialization.isNotEmpty
+                ? doctor.specialization
+                : 'Physiotherapy',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${doctor.experienceYears ?? 0}+ years • ${doctor.city ?? 'Location not set'}',
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            phoneNumber,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onCall,
+                  icon: const Icon(Icons.call_outlined, size: 16),
+                  label: const Text('Call'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 40,
+                width: 44,
+                child: OutlinedButton(
+                  onPressed: onWhatsApp,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Icon(Icons.chat, size: 18),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onBook,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Book Now'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -732,6 +1681,9 @@ class _SpecialistCard extends StatelessWidget {
   final int experienceYears;
   final double rating;
   final VoidCallback onChoose;
+  final VoidCallback onBookAppointment;
+  final VoidCallback onWhatsApp;
+  final double? width;
 
   const _SpecialistCard({
     required this.name,
@@ -740,12 +1692,15 @@ class _SpecialistCard extends StatelessWidget {
     required this.experienceYears,
     required this.rating,
     required this.onChoose,
+    required this.onBookAppointment,
+    required this.onWhatsApp,
+    this.width,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 180,
+      width: width,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -839,21 +1794,53 @@ class _SpecialistCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onBookAppointment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Book Appointment',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 40,
+                width: 44,
+                child: OutlinedButton(
+                  onPressed: onWhatsApp,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Icon(Icons.chat, size: 18),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
-            height: 30,
-            child: ElevatedButton(
+            height: 34,
+            child: OutlinedButton(
               onPressed: onChoose,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: const Text(
-                'View Doctor',
+                'View Doctor Profile',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
               ),
             ),
@@ -876,31 +1863,39 @@ class _ServiceImage extends StatelessWidget {
     if (value.isEmpty) {
       return Container(
         color: const Color(0xFFFFE0C8),
+        width: double.infinity,
+        height: double.infinity,
         child: const Center(child: Icon(Icons.image_not_supported, size: 50)),
       );
     }
 
     final isNetwork = value.startsWith('http://') || value.startsWith('https://');
     if (isNetwork) {
-      return Image.network(
-        value,
-        fit: fit,
-        errorBuilder:
-            (context, error, stackTrace) => Container(
-              color: const Color(0xFFFFE0C8),
-              child: const Center(child: Icon(Icons.broken_image, size: 50)),
-            ),
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFE0C8),
+          image: DecorationImage(
+            image: NetworkImage(value),
+            fit: fit,
+            onError: (exception, stackTrace) {},
+          ),
+        ),
       );
     }
 
-    return Image.asset(
-      value,
-      fit: fit,
-      errorBuilder:
-          (context, error, stackTrace) => Container(
-            color: const Color(0xFFFFE0C8),
-            child: const Center(child: Icon(Icons.broken_image, size: 50)),
-          ),
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFE0C8),
+        image: DecorationImage(
+          image: AssetImage(value),
+          fit: fit,
+          onError: (exception, stackTrace) {},
+        ),
+      ),
     );
   }
 }

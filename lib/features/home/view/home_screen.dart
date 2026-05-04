@@ -521,6 +521,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final _nameController = TextEditingController();
     final _mobileController = TextEditingController();
     String? _selectedProfession;
+    final _customProfessionController = TextEditingController();
     bool _isSubmitting = false;
 
     showModalBottomSheet(
@@ -591,33 +592,175 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        value: _selectedProfession,
-                        decoration: InputDecoration(
-                          labelText: 'Profession',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          prefixIcon: const Icon(Icons.work_outline),
-                        ),
-                        items: ['Doctor', 'Nurse'].map((String profession) {
-                          return DropdownMenuItem<String>(
-                            value: profession,
-                            child: Text(profession),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setStateModal(() {
-                            _selectedProfession = newValue;
-                          });
-                        },
+                      FormField<String>(
+                        initialValue: _selectedProfession,
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
+                          if (_selectedProfession == null ||
+                              _selectedProfession!.isEmpty) {
                             return 'Please select your profession';
                           }
                           return null;
                         },
+                        builder: (field) {
+                          final professions = [
+                            'Doctor',
+                            'Nurse',
+                            'Pharmacy',
+                            'Physiotherapist',
+                            'Other',
+                          ];
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: field.hasError
+                                        ? Colors.red.shade300
+                                        : const Color(0xFFD9E0F3),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          height: 36,
+                                          width: 36,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEEF2FF),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(
+                                            Icons.work_outline,
+                                            color: Color(0xFF2F49D0),
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        const Expanded(
+                                          child: Text(
+                                            'Profession',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Wrap(
+                                      spacing: 10,
+                                      runSpacing: 10,
+                                      children: professions.map((profession) {
+                                        final isSelected =
+                                            _selectedProfession == profession;
+
+                                        return GestureDetector(
+                                          onTap: () {
+                                            setStateModal(() {
+                                              _selectedProfession = profession;
+                                              if (profession != 'Other') {
+                                                _customProfessionController
+                                                    .clear();
+                                              }
+                                            });
+                                            field.didChange(profession);
+                                          },
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 180),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? const Color(0xFF2F49D0)
+                                                  : Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? const Color(0xFF2F49D0)
+                                                    : const Color(0xFFD9E0F3),
+                                              ),
+                                              boxShadow: isSelected
+                                                  ? [
+                                                      BoxShadow(
+                                                        color: const Color(
+                                                                0xFF2F49D0)
+                                                            .withOpacity(0.14),
+                                                        blurRadius: 12,
+                                                        offset:
+                                                            const Offset(0, 4),
+                                                      ),
+                                                    ]
+                                                  : null,
+                                            ),
+                                            child: Text(
+                                              profession,
+                                              style: TextStyle(
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : const Color(0xFF1F2937),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (field.hasError) ...[
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    field.errorText!,
+                                    style: TextStyle(
+                                      color: Colors.red.shade700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
+                      if (_selectedProfession == 'Other') ...[
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _customProfessionController,
+                          decoration: InputDecoration(
+                            labelText: 'Write Your Profession',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            prefixIcon: const Icon(Icons.edit_outlined),
+                          ),
+                          validator: (value) {
+                            if (_selectedProfession == 'Other' &&
+                                (value == null || value.trim().isEmpty)) {
+                              return 'Please write your profession';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
@@ -631,10 +774,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                       _isSubmitting = true;
                                     });
 
+                                    final selectedProfession = _selectedProfession == 'Other'
+                                        ? _customProfessionController.text.trim()
+                                        : _selectedProfession!;
+
                                     final success = await _giveServiceService.submitRequest(
                                       _nameController.text.trim(),
                                       _mobileController.text.trim(),
-                                      _selectedProfession!,
+                                      selectedProfession,
                                     );
 
                                     setStateModal(() {
@@ -991,13 +1138,17 @@ class _RemoteOrAssetImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final imagePath = path.trim();
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return Image.network(
-        imagePath,
-        fit: fit,
-        width: width,
-        height: height,
-        errorBuilder:
-            (_, __, ___) => _ImageFallback(width: width, height: height),
+      return Container(
+        width: width ?? double.infinity,
+        height: height ?? double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          image: DecorationImage(
+            image: NetworkImage(imagePath),
+            fit: fit,
+            onError: (exception, stackTrace) {},
+          ),
+        ),
       );
     }
 
@@ -1005,13 +1156,17 @@ class _RemoteOrAssetImage extends StatelessWidget {
       return _ImageFallback(width: width, height: height);
     }
 
-    return Image.asset(
-      imagePath,
-      fit: fit,
-      width: width,
-      height: height,
-      errorBuilder:
-          (_, __, ___) => _ImageFallback(width: width, height: height),
+    return Container(
+      width: width ?? double.infinity,
+      height: height ?? double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        image: DecorationImage(
+          image: AssetImage(imagePath),
+          fit: fit,
+          onError: (exception, stackTrace) {},
+        ),
+      ),
     );
   }
 }

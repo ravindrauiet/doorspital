@@ -59,6 +59,9 @@ class DoorstepServiceContent {
   final String fullDetailsTitle;
   final String fullDetails;
   final String detailsCtaText;
+  final bool showWhatsIncludedSection;
+  final bool showSubCategoriesSection;
+  final bool showAvailableSpecialistsSection;
   final String availableSpecialistsTitle;
   final String subCategoriesTitle;
   final List<DoorstepServiceSubCategory> subCategories;
@@ -81,6 +84,9 @@ class DoorstepServiceContent {
     required this.fullDetailsTitle,
     required this.fullDetails,
     required this.detailsCtaText,
+    required this.showWhatsIncludedSection,
+    required this.showSubCategoriesSection,
+    required this.showAvailableSpecialistsSection,
     required this.availableSpecialistsTitle,
     required this.subCategoriesTitle,
     required this.subCategories,
@@ -108,6 +114,10 @@ class DoorstepServiceContent {
       fullDetailsTitle: json['fullDetailsTitle'] ?? 'Full Service Details',
       fullDetails: json['fullDetails'] ?? '',
       detailsCtaText: json['detailsCtaText'] ?? 'View Full Service Details',
+      showWhatsIncludedSection: json['showWhatsIncludedSection'] ?? true,
+      showSubCategoriesSection: json['showSubCategoriesSection'] ?? true,
+      showAvailableSpecialistsSection:
+          json['showAvailableSpecialistsSection'] ?? true,
       availableSpecialistsTitle:
           json['availableSpecialistsTitle'] ?? 'Available Specialists',
       subCategoriesTitle: json['subCategoriesTitle'] ?? 'Service Categories',

@@ -187,7 +187,9 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
           // Show an obvious success animation/dialog, then navigate to Profile (appointments)
           provider.clearSelection();
           await _loadAvailability();
-          await _showBookingSuccessAnimation();
+          await _showBookingSuccessAnimation(
+            response.data?['requestOtp']?.toString(),
+          );
           if (!mounted) return;
           // After animation, switch bottom navbar to Profile tab and navigate there
           // set provider index to Profile (index 3)
@@ -229,7 +231,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     }
   }
 
-  Future<void> _showBookingSuccessAnimation() async {
+  Future<void> _showBookingSuccessAnimation(String? requestOtp) async {
   if (!mounted) return;
   showGeneralDialog(
     context: context,
@@ -305,7 +307,45 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
+                  if (requestOtp != null && requestOtp.trim().isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F7FF),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFD8E0FF)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Your Request OTP',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            requestOtp,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 4,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ] else
+                    const SizedBox(height: 24),
                   // Button
                   SizedBox(
                     width: double.infinity,

@@ -42,6 +42,7 @@ class Doctor {
   final bool? isActive;
   final String? about;
   final String? qualification;
+  final String? phoneNumber;
   final List<String> services;
 
   Doctor({
@@ -55,6 +56,7 @@ class Doctor {
     this.isActive,
     this.about,
     this.qualification,
+    this.phoneNumber,
     this.services = const [],
   });
 
@@ -92,6 +94,9 @@ class Doctor {
       isActive: json['isActive'],
       about: json['about'],
       qualification: json['qualification'],
+      phoneNumber:
+          json['doctorPhone']?.toString() ??
+          (json['user'] is Map ? json['user']['phoneNumber']?.toString() : null),
       services:
           (json['services'] as List<dynamic>?)
               ?.map((item) => item.toString())
