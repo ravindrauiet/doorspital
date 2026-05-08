@@ -45,7 +45,7 @@ class AboutUsPage extends StatelessWidget {
             
             // Logo
             Image.asset(
-              'assets/images/logo.png',
+              'assets/logo.png',
               width: 150,
               height: 150,
               fit: BoxFit.contain,
