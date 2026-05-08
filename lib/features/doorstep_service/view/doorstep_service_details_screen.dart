@@ -1,12 +1,10 @@
 import 'package:door/features/doorstep_service/models/doorstep_content_model.dart';
+import 'package:door/features/doorstep_service/components/service_request_sheet.dart';
 import 'package:door/features/doorstep_service/services/doorstep_content_service.dart';
 import 'package:door/features/home/provider/bottom_navbar_provider.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:door/services/doctor_service.dart';
 import 'package:door/services/nurse_service.dart';
-import 'package:door/services/api_client.dart';
-import 'package:door/services/profile_service.dart';
-import 'package:door/services/service_request_service.dart';
 import 'package:door/services/models/doctor_models.dart';
 import 'package:door/services/models/nurse_models.dart';
 import 'package:flutter/cupertino.dart';
@@ -34,8 +32,6 @@ class _DoorstepServiceDetailsScreenState
   final DoorstepContentService _contentService = DoorstepContentService();
   final DoctorService _doctorService = DoctorService();
   final NurseService _nurseService = NurseService();
-  final ServiceRequestService _serviceRequestService = ServiceRequestService();
-  final ProfileService _profileService = ProfileService();
 
   bool _isLoading = true;
   bool _isSpecialistsLoading = false;
@@ -171,7 +167,8 @@ class _DoorstepServiceDetailsScreenState
     final isNurseService = _isNurseService(detail);
     final isPhysiotherapyService = _isPhysiotherapyService(detail);
 
-    return _showServiceRequestSheet(
+    return showServiceRequestSheet(
+      context: context,
       serviceType:
           isNurseService
               ? 'nurse'
@@ -184,470 +181,8 @@ class _DoorstepServiceDetailsScreenState
       providerId: '',
       providerName: detail.title,
       providerPhone: _supportPhoneNumber,
-    );
-  }
-
-  Future<void> _showServiceRequestSheet({
-    required String serviceType,
-    required String serviceKey,
-    required String serviceTitle,
-    required String providerKind,
-    required String providerId,
-    required String providerName,
-    required String providerPhone,
-  }) async {
-    final formKey = GlobalKey<FormState>();
-    final selfNameController = TextEditingController();
-    final selfMobileController = TextEditingController();
-    final otherPatientNameController = TextEditingController();
-    final otherPatientMobileController = TextEditingController();
-    final otherRequesterNameController = TextEditingController();
-    final otherRequesterMobileController = TextEditingController();
-    final notesController = TextEditingController();
-    bool isSubmitting = false;
-    bool isLoadingProfile = true;
-    bool isForSelf = true;
-    bool shouldSavePhoneForFuture = false;
-
-    final savedUser = await ApiClient().getUserData();
-    final savedName =
-        savedUser?['userName']?.toString().trim() ??
-        savedUser?['name']?.toString().trim() ??
-        '';
-    final savedPhone = savedUser?['phoneNumber']?.toString().trim() ?? '';
-    selfNameController.text = savedName;
-    selfMobileController.text = savedPhone;
-
-    final token = await ApiClient().getToken();
-    if (token != null && token.isNotEmpty) {
-      final profileResponse = await _profileService.getProfile();
-      final profile = profileResponse.data ?? const {};
-      final profileName = profile['userName']?.toString().trim() ?? savedName;
-      final profilePhone = profile['phoneNumber']?.toString().trim() ?? savedPhone;
-      selfNameController.text = profileName;
-      selfMobileController.text = profilePhone;
-    }
-    isLoadingProfile = false;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setStateModal) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Request ${serviceTitle.trim().isNotEmpty ? serviceTitle : serviceType}',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        providerName.trim().isNotEmpty
-                            ? 'Provider: $providerName'
-                            : 'Submit your request and use the contact number to call directly.',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3F5FB),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setStateModal(() {
-                                  isForSelf = true;
-                                }),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        isForSelf ? AppColors.primary : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    'For Myself',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: isForSelf ? Colors.white : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setStateModal(() {
-                                  isForSelf = false;
-                                }),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        !isForSelf ? AppColors.primary : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    'For Other',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: !isForSelf ? Colors.white : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      if (isLoadingProfile)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (isForSelf) ...[
-                        TextFormField(
-                          controller: selfNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Your Name',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) => value == null || value.trim().isEmpty
-                              ? 'Enter your name'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: selfMobileController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            labelText: 'Mobile Number',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) => value == null || value.trim().isEmpty
-                              ? 'Enter your mobile number'
-                              : null,
-                        ),
-                      ] else ...[
-                        TextFormField(
-                          controller: otherPatientNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Patient Name',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) => value == null || value.trim().isEmpty
-                              ? 'Enter patient name'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: otherPatientMobileController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            labelText: 'Patient Mobile Number',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) => value == null || value.trim().isEmpty
-                              ? 'Enter patient mobile number'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: otherRequesterNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Your Name',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) => value == null || value.trim().isEmpty
-                              ? 'Enter your name'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: otherRequesterMobileController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            labelText: 'Your Mobile Number',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) => value == null || value.trim().isEmpty
-                              ? 'Enter your mobile number'
-                              : null,
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: notesController,
-                        minLines: 3,
-                        maxLines: 4,
-                        decoration: const InputDecoration(
-                          labelText: 'Notes (optional)',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: isSubmitting
-                              ? null
-                              : () async {
-                                  if (!formKey.currentState!.validate()) return;
-                                  setStateModal(() {
-                                    isSubmitting = true;
-                                  });
-
-                                  final leadName = isForSelf
-                                      ? selfNameController.text.trim()
-                                      : otherPatientNameController.text.trim();
-                                  final leadMobile = isForSelf
-                                      ? selfMobileController.text.trim()
-                                      : otherPatientMobileController.text.trim();
-                                  final requesterName = isForSelf
-                                      ? selfNameController.text.trim()
-                                      : otherRequesterNameController.text.trim();
-                                  final requesterMobile = isForSelf
-                                      ? selfMobileController.text.trim()
-                                      : otherRequesterMobileController.text.trim();
-
-                                  if (isForSelf &&
-                                      savedPhone.isEmpty &&
-                                      leadMobile.isNotEmpty &&
-                                      token != null &&
-                                      token.isNotEmpty) {
-                                    final profileUpdate = await _profileService.updateProfile({
-                                      'phoneNumber': leadMobile,
-                                    });
-                                    if (profileUpdate.success && profileUpdate.data != null) {
-                                      final currentUser = await ApiClient().getUserData() ?? {};
-                                      currentUser['phoneNumber'] = leadMobile;
-                                      await ApiClient().setUserData(currentUser);
-                                      shouldSavePhoneForFuture = true;
-                                    }
-                                  }
-
-                                  final response = await _serviceRequestService.submitRequest(
-                                    ServiceRequestPayload(
-                                      name: leadName,
-                                      mobileNumber: leadMobile,
-                                      requestFor: isForSelf ? 'self' : 'other',
-                                      requesterName: requesterName,
-                                      requesterMobileNumber: requesterMobile,
-                                      serviceType: serviceType,
-                                      serviceKey: serviceKey,
-                                      serviceTitle: serviceTitle,
-                                      providerKind: providerKind,
-                                      providerId: providerId,
-                                      providerName: providerName,
-                                      providerPhone: providerPhone,
-                                      notes: notesController.text.trim(),
-                                    ),
-                                  );
-
-                                  setStateModal(() {
-                                    isSubmitting = false;
-                                  });
-
-                                  if (!mounted || !sheetContext.mounted) return;
-                                  if (response.success) {
-                                    final requestOtp =
-                                        response.data?['requestOtp']?.toString() ?? '';
-                                    final whatsappMessage = [
-                                      'New service request',
-                                      'Service: $serviceTitle',
-                                      'Request Type: ${isForSelf ? 'For Myself' : 'For Other'}',
-                                      'Patient Name: $leadName',
-                                      'Patient Mobile: $leadMobile',
-                                      if (!isForSelf) 'Requester Name: $requesterName',
-                                      if (!isForSelf) 'Requester Mobile: $requesterMobile',
-                                      'Provider: ${providerName.trim().isNotEmpty ? providerName : 'Support'}',
-                                      'OTP: $requestOtp',
-                                      if (notesController.text.trim().isNotEmpty)
-                                        'Notes: ${notesController.text.trim()}',
-                                    ].join('\n');
-                                    Navigator.pop(sheetContext);
-                                    await _showRequestSuccessDialog(
-                                      requestOtp: requestOtp,
-                                      phoneNumber: providerPhone,
-                                      serviceTitle: serviceTitle,
-                                      whatsappMessage: whatsappMessage,
-                                      profileSaved: shouldSavePhoneForFuture,
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          response.message ?? 'Failed to submit request',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: isSubmitting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Submit Request',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _showRequestSuccessDialog({
-    required String requestOtp,
-    required String phoneNumber,
-    required String serviceTitle,
-    required String whatsappMessage,
-    bool profileSaved = false,
-  }) async {
-    if (!mounted) return;
-    final callNumber = phoneNumber.trim().isNotEmpty
-        ? phoneNumber.trim()
-        : _supportPhoneNumber;
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Request Submitted for $serviceTitle'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Use this OTP for admin verification or follow-up.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FF),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFD8E0FF)),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Generated OTP',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      requestOtp,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 4,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Contact Number: $callNumber',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              if (profileSaved) ...[
-                const SizedBox(height: 10),
-                const Text(
-                  'Your mobile number was saved for future requests.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await _launchWhatsAppWithMessage(whatsappMessage);
-              },
-              child: const Text('WhatsApp'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await _launchCall(callNumber);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Call Now'),
-            ),
-          ],
-        );
-      },
+      supportPhoneNumber: _supportPhoneNumber,
+      supportWhatsAppNumber: _supportWhatsAppNumber,
     );
   }
 
@@ -1107,7 +642,8 @@ class _DoorstepServiceDetailsScreenState
                                         : _supportPhoneNumber,
                                   ),
                                   onWhatsApp: _launchWhatsApp,
-                                  onBook: () => _showServiceRequestSheet(
+                                  onBook: () => showServiceRequestSheet(
+                                    context: context,
                                     serviceType: 'nurse',
                                     serviceKey: detail.serviceKey,
                                     serviceTitle: detail.title,
@@ -1118,6 +654,8 @@ class _DoorstepServiceDetailsScreenState
                                         nurse.phoneNumber.isNotEmpty
                                             ? nurse.phoneNumber
                                             : _supportPhoneNumber,
+                                    supportPhoneNumber: _supportPhoneNumber,
+                                    supportWhatsAppNumber: _supportWhatsAppNumber,
                                   ),
                                 ),
                               );
@@ -1154,7 +692,8 @@ class _DoorstepServiceDetailsScreenState
                               if (isPhysiotherapyService) ...[
                                 const SizedBox(height: 10),
                                 OutlinedButton.icon(
-                                  onPressed: () => _showServiceRequestSheet(
+                                  onPressed: () => showServiceRequestSheet(
+                                    context: context,
                                     serviceType: 'physiotherapy',
                                     serviceKey: detail.serviceKey,
                                     serviceTitle: detail.title,
@@ -1162,6 +701,8 @@ class _DoorstepServiceDetailsScreenState
                                     providerId: '',
                                     providerName: 'Support',
                                     providerPhone: _supportPhoneNumber,
+                                    supportPhoneNumber: _supportPhoneNumber,
+                                    supportWhatsAppNumber: _supportWhatsAppNumber,
                                   ),
                                   icon: const Icon(Icons.key_outlined),
                                   label: const Text('Request Physiotherapy'),
@@ -1188,7 +729,8 @@ class _DoorstepServiceDetailsScreenState
                                   doctor: specialist,
                                   onCall: () => _launchCall(phoneNumber),
                                   onWhatsApp: _launchWhatsApp,
-                                  onBook: () => _showServiceRequestSheet(
+                                  onBook: () => showServiceRequestSheet(
+                                    context: context,
                                     serviceType: 'physiotherapy',
                                     serviceKey: detail.serviceKey,
                                     serviceTitle: detail.title,
@@ -1198,6 +740,8 @@ class _DoorstepServiceDetailsScreenState
                                         specialist.name ??
                                         'Physiotherapy Specialist',
                                     providerPhone: phoneNumber,
+                                    supportPhoneNumber: _supportPhoneNumber,
+                                    supportWhatsAppNumber: _supportWhatsAppNumber,
                                   ),
                                 ),
                               );

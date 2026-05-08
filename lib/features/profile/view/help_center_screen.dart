@@ -2,6 +2,7 @@ import 'package:door/features/components/custom_appbar.dart';
 import 'package:door/services/support_service.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -12,6 +13,7 @@ class HelpCenterScreen extends StatefulWidget {
 
 class _HelpCenterScreenState extends State<HelpCenterScreen> {
   final SupportService _supportService = SupportService();
+  static const String _supportPhoneNumber = '+919837715111';
 
   bool _isSubmitting = false;
   bool _loadingTickets = true;
@@ -21,6 +23,11 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   void initState() {
     super.initState();
     _loadTickets();
+  }
+
+  Future<void> _callSupport() async {
+    final uri = Uri.parse('tel:$_supportPhoneNumber');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -84,51 +91,77 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 54,
-                            child: ElevatedButton(
-                              onPressed: _isSubmitting
-                                  ? null
-                                  : () => _showSupportRequestSheet(),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF254C9E),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: _isSubmitting
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  height: 54,
+                                  child: ElevatedButton(
+                                    onPressed: _isSubmitting
+                                        ? null
+                                        : () => _showSupportRequestSheet(),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF254C9E),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
                                       ),
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Contact Admin Support',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Icon(
-                                          Icons.support_agent_outlined,
-                                          size: 20,
-                                        ),
-                                      ],
+                                      elevation: 0,
                                     ),
+                                    child: _isSubmitting
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                            ),
+                                          )
+                                        : const FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              'Contact Admin Support',
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                width: 54,
+                                height: 54,
+                                child: ElevatedButton(
+                                  onPressed: _callSupport,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF178B57),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    elevation: 0,
+                                  ),
+                                  child: const Icon(Icons.call_outlined, size: 24),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _supportPhoneNumber,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],

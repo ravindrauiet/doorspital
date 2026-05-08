@@ -1,5 +1,6 @@
 import 'package:door/features/home/components/quick_action_button.dart';
 import 'package:door/features/home/components/doorstep_service_card.dart'; // Import shared component
+import 'package:door/features/doorstep_service/components/service_request_sheet.dart';
 import 'package:door/services/article_service.dart';
 import 'package:door/services/models/article_model.dart';
 import 'package:door/features/home/components/article_card.dart';
@@ -61,6 +62,209 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  bool _isNurseService(DoorstepServiceContent service) {
+    final key = '${service.serviceKey} ${service.title}'.toLowerCase();
+    return key.contains('nurs') || key.contains('caring');
+  }
+
+  bool _isPhysiotherapyService(DoorstepServiceContent service) {
+    final key = '${service.serviceKey} ${service.title}'.toLowerCase();
+    return key.contains('physio');
+  }
+
+  String _getHomeServiceType(DoorstepServiceContent service) {
+    if (_isNurseService(service)) {
+      return 'nurse';
+    }
+    if (_isPhysiotherapyService(service)) {
+      return 'physiotherapy';
+    }
+    return 'doctor';
+  }
+
+  Widget _buildHomeServicePickerImage(DoorstepServiceContent service) {
+    final imagePath = service.cardImage.trim();
+    final hasNetworkImage =
+        imagePath.startsWith('http://') || imagePath.startsWith('https://');
+
+    if (imagePath.isEmpty) {
+      return Container(
+        color: const Color(0xFFE9EEFF),
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.medical_services_outlined,
+          color: AppColors.primary,
+        ),
+      );
+    }
+
+    if (hasNetworkImage) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: const Color(0xFFE9EEFF),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.medical_services_outlined,
+              color: AppColors.primary,
+            ),
+          );
+        },
+      );
+    }
+
+    return Image.asset(
+      imagePath,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: const Color(0xFFE9EEFF),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.medical_services_outlined,
+            color: AppColors.primary,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openHomeServiceRequest(DoorstepServiceContent service) async {
+    await showServiceRequestSheet(
+      context: context,
+      serviceType: _getHomeServiceType(service),
+      serviceKey: service.serviceKey,
+      serviceTitle: service.title,
+      providerKind: 'general',
+      providerId: '',
+      providerName: service.title,
+      providerPhone: kDefaultDoorstepSupportPhoneNumber,
+    );
+  }
+
+  Future<void> _showHomeServicePicker(
+    List<DoorstepServiceContent> services,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select a Service',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Choose the service you want to book.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ...services.map(
+                  (service) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await _openHomeServiceRequest(service);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7F9FE),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFFDDE5FF)),
+                        ),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: SizedBox(
+                                width: 64,
+                                height: 64,
+                                child: _buildHomeServicePickerImage(service),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    service.title,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  if (service.shortDescription.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      service.shortDescription,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textSecondary,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleHomeBookService() async {
+    final services =
+        _doorstepContent?.homeServices ?? const <DoorstepServiceContent>[];
+    if (services.isEmpty) {
+      if (!mounted) return;
+      context.read<BottomNavbarProvider>().updateIndex(1);
+      return;
+    }
+
+    await _showHomeServicePicker(services);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomOverlayClearance =
@@ -83,9 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 searchPlaceholder:
                     _homeContent?.banner.searchPlaceholder ??
                     'Search doctor, drugs, articles...',
-                onBookService: () {
-                  context.read<BottomNavbarProvider>().updateIndex(1);
-                },
+                onBookService: _handleHomeBookService,
                 onGiveService: _showGiveServiceForm,
                 onSupport: () => context.pushNamed(RouteConstants.helpCenterScreen),
                 onPlay: _handleBannerVideoTap,
