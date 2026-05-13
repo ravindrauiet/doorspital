@@ -352,14 +352,14 @@ class _DoorstepServiceDetailsScreenState
             children: [
               Stack(
                 children: [
-                  SizedBox(
-                    height: 220,
-                    width: double.infinity,
-                    child: _ServiceImage(
-                      image: detail.bannerImage,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                   SizedBox(
+                     height: 220,
+                     width: double.infinity,
+                     child: _ServiceImage(
+                       image: detail.bannerImage,
+                       fit: BoxFit.contain,
+                     ),
+                   ),
                   Positioned.fill(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -1959,31 +1959,49 @@ class _ServiceImage extends StatelessWidget {
     }
 
     final isNetwork = value.startsWith('http://') || value.startsWith('https://');
-    if (isNetwork) {
-      return Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFE0C8),
-          image: DecorationImage(
-            image: NetworkImage(value),
-            fit: fit,
-            onError: (exception, stackTrace) {},
-          ),
-        ),
-      );
-    }
+    final imageProvider =
+        isNetwork ? NetworkImage(value) : AssetImage(value) as ImageProvider;
 
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFE0C8),
-        image: DecorationImage(
-          image: AssetImage(value),
-          fit: fit,
-          onError: (exception, stackTrace) {},
-        ),
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE0C8),
+              image: DecorationImage(
+                image: imageProvider,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                opacity: 0.22,
+                onError: (exception, stackTrace) {},
+              ),
+            ),
+          ),
+          Container(
+            color: const Color(0xFFFFE0C8).withOpacity(0.35),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Image(
+              image: imageProvider,
+              fit: fit,
+              alignment: Alignment.center,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: const Color(0xFFFFE0C8),
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: const Center(
+                    child: Icon(Icons.image_not_supported, size: 50),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
