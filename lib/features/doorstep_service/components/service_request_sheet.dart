@@ -22,6 +22,7 @@ Future<void> showServiceRequestSheet({
 }) async {
   final serviceRequestService = ServiceRequestService();
   final profileService = ProfileService();
+  final apiClient = ApiClient();
   final formKey = GlobalKey<FormState>();
   final selfNameController = TextEditingController();
   final selfMobileController = TextEditingController();
@@ -35,23 +36,40 @@ Future<void> showServiceRequestSheet({
   bool isForSelf = true;
   bool shouldSavePhoneForFuture = false;
 
-  final savedUser = await ApiClient().getUserData();
+  final savedUser = await apiClient.getUserData();
   final savedName =
       savedUser?['userName']?.toString().trim() ??
       savedUser?['name']?.toString().trim() ??
       '';
   final savedPhone = savedUser?['phoneNumber']?.toString().trim() ?? '';
+  var profileName = savedName;
+  var profilePhone = savedPhone;
   selfNameController.text = savedName;
   selfMobileController.text = savedPhone;
+  otherRequesterNameController.text = savedName;
+  otherRequesterMobileController.text = savedPhone;
 
-  final token = await ApiClient().getToken();
+  final token = await apiClient.getToken();
   if (token != null && token.isNotEmpty) {
     final profileResponse = await profileService.getProfile();
     final profile = profileResponse.data ?? const {};
-    final profileName = profile['userName']?.toString().trim() ?? savedName;
-    final profilePhone = profile['phoneNumber']?.toString().trim() ?? savedPhone;
+    profileName = profile['userName']?.toString().trim() ?? savedName;
+    profilePhone = profile['phoneNumber']?.toString().trim() ?? savedPhone;
     selfNameController.text = profileName;
     selfMobileController.text = profilePhone;
+    otherRequesterNameController.text = profileName;
+    otherRequesterMobileController.text = profilePhone;
+    final mergedUser = Map<String, dynamic>.from(savedUser ?? const {});
+    if (profileName.isNotEmpty) {
+      mergedUser['userName'] = profileName;
+      mergedUser['name'] = profileName;
+    }
+    if (profilePhone.isNotEmpty) {
+      mergedUser['phoneNumber'] = profilePhone;
+    }
+    if (mergedUser.isNotEmpty) {
+      await apiClient.setUserData(mergedUser);
+    }
   }
   isLoadingProfile = false;
 
@@ -244,7 +262,9 @@ Future<void> showServiceRequestSheet({
                       minLines: 3,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                        labelText: 'Notes (optional)',
+                        labelText: 'Explain your request (optional)',
+                        hintText:
+                            'Briefly describe what help you need, symptoms, timing, or special requirements.',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -273,23 +293,49 @@ Future<void> showServiceRequestSheet({
                                 final requesterMobile = isForSelf
                                     ? selfMobileController.text.trim()
                                     : otherRequesterMobileController.text.trim();
+                                final profileNameCandidate = requesterName;
+                                final profilePhoneCandidate = requesterMobile;
 
-                                if (isForSelf &&
-                                    savedPhone.isEmpty &&
-                                    leadMobile.isNotEmpty &&
-                                    token != null &&
-                                    token.isNotEmpty) {
-                                  final profileUpdate = await profileService
-                                      .updateProfile({
-                                    'phoneNumber': leadMobile,
-                                  });
-                                  if (profileUpdate.success &&
-                                      profileUpdate.data != null) {
-                                    final currentUser =
-                                        await ApiClient().getUserData() ?? {};
-                                    currentUser['phoneNumber'] = leadMobile;
-                                    await ApiClient().setUserData(currentUser);
-                                    shouldSavePhoneForFuture = true;
+                                if (token != null && token.isNotEmpty) {
+                                  final profilePayload = <String, dynamic>{};
+                                  if (profileNameCandidate.isNotEmpty &&
+                                      profileNameCandidate != profileName) {
+                                    profilePayload['userName'] =
+                                        profileNameCandidate;
+                                  }
+                                  if (profilePhoneCandidate.isNotEmpty &&
+                                      profilePhoneCandidate != profilePhone) {
+                                    profilePayload['phoneNumber'] =
+                                        profilePhoneCandidate;
+                                  }
+
+                                  if (profilePayload.isNotEmpty) {
+                                    final profileUpdate = await profileService
+                                        .updateProfile(profilePayload);
+                                    if (profileUpdate.success &&
+                                        profileUpdate.data != null) {
+                                      profileName =
+                                          profileUpdate.data!['userName']
+                                              ?.toString()
+                                              .trim() ??
+                                          profileNameCandidate;
+                                      profilePhone =
+                                          profileUpdate.data!['phoneNumber']
+                                              ?.toString()
+                                              .trim() ??
+                                          profilePhoneCandidate;
+                                      final currentUser =
+                                          await apiClient.getUserData() ?? {};
+                                      if (profileName.isNotEmpty) {
+                                        currentUser['userName'] = profileName;
+                                        currentUser['name'] = profileName;
+                                      }
+                                      if (profilePhone.isNotEmpty) {
+                                        currentUser['phoneNumber'] = profilePhone;
+                                      }
+                                      await apiClient.setUserData(currentUser);
+                                      shouldSavePhoneForFuture = true;
+                                    }
                                   }
                                 }
 
@@ -318,6 +364,17 @@ Future<void> showServiceRequestSheet({
 
                                 if (!sheetContext.mounted) return;
                                 if (response.success) {
+                                  final currentUser =
+                                      await apiClient.getUserData() ?? {};
+                                  if (requesterName.isNotEmpty) {
+                                    currentUser['userName'] = requesterName;
+                                    currentUser['name'] = requesterName;
+                                  }
+                                  if (requesterMobile.isNotEmpty) {
+                                    currentUser['phoneNumber'] = requesterMobile;
+                                  }
+                                  await apiClient.setUserData(currentUser);
+
                                   final requestOtp =
                                       response.data?['requestOtp']?.toString() ?? '';
                                   final whatsappMessage = [
@@ -331,7 +388,7 @@ Future<void> showServiceRequestSheet({
                                     'Provider: ${providerName.trim().isNotEmpty ? providerName : 'Support'}',
                                     'OTP: $requestOtp',
                                     if (notesController.text.trim().isNotEmpty)
-                                      'Notes: ${notesController.text.trim()}',
+                                      'Request Details: ${notesController.text.trim()}',
                                   ].join('\n');
                                   Navigator.pop(sheetContext);
                                   await _showRequestSuccessDialog(
@@ -457,7 +514,7 @@ Future<void> _showRequestSuccessDialog({
             if (profileSaved) ...[
               const SizedBox(height: 10),
               const Text(
-                'Your mobile number was saved for future requests.',
+                'Your contact details were saved for future requests.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

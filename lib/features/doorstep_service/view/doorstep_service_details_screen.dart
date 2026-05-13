@@ -100,14 +100,15 @@ class _DoorstepServiceDetailsScreenState
   }
 
   Future<void> _loadLeadContext() async {
-    final savedUser = await ApiClient().getUserData();
+    final apiClient = ApiClient();
+    final savedUser = await apiClient.getUserData();
     _leadUserName =
         savedUser?['userName']?.toString().trim() ??
         savedUser?['name']?.toString().trim() ??
         '';
     _leadUserPhone = savedUser?['phoneNumber']?.toString().trim() ?? '';
 
-    final token = await ApiClient().getToken();
+    final token = await apiClient.getToken();
     if (token == null || token.isEmpty) return;
 
     final profileResponse = await _profileService.getProfile();
@@ -120,6 +121,17 @@ class _DoorstepServiceDetailsScreenState
         _leadUserName;
     _leadUserPhone =
         profile['phoneNumber']?.toString().trim() ?? _leadUserPhone;
+    final mergedUser = Map<String, dynamic>.from(savedUser ?? const {});
+    if (_leadUserName.isNotEmpty) {
+      mergedUser['userName'] = _leadUserName;
+      mergedUser['name'] = _leadUserName;
+    }
+    if (_leadUserPhone.isNotEmpty) {
+      mergedUser['phoneNumber'] = _leadUserPhone;
+    }
+    if (mergedUser.isNotEmpty) {
+      await apiClient.setUserData(mergedUser);
+    }
   }
 
   Future<void> _loadDoctorsForFilter(String filterValue) async {
@@ -185,6 +197,169 @@ class _DoorstepServiceDetailsScreenState
     final encoded = Uri.encodeComponent(message);
     final uri = Uri.parse('https://wa.me/$_supportWhatsAppNumber?text=$encoded');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<bool> _ensureLeadContactForWhatsApp() async {
+    await _loadLeadContext();
+    if (_leadUserName.trim().isNotEmpty && _leadUserPhone.trim().isNotEmpty) {
+      return true;
+    }
+    if (!mounted) return false;
+
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: _leadUserName);
+    final phoneController = TextEditingController(text: _leadUserPhone);
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        bool isSaving = false;
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Complete Your Details',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Enter your name and mobile number before continuing to WhatsApp.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Your Name',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.trim().isEmpty
+                          ? 'Enter your name'
+                          : null,
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Mobile Number',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => value == null || value.trim().isEmpty
+                          ? 'Enter your mobile number'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                setStateModal(() {
+                                  isSaving = true;
+                                });
+
+                                final nextName = nameController.text.trim();
+                                final nextPhone = phoneController.text.trim();
+                                final apiClient = ApiClient();
+                                final token = await apiClient.getToken();
+                                if (token != null && token.isNotEmpty) {
+                                  await _profileService.updateProfile({
+                                    'userName': nextName,
+                                    'phoneNumber': nextPhone,
+                                  });
+                                }
+
+                                final currentUser =
+                                    await apiClient.getUserData() ?? {};
+                                currentUser['userName'] = nextName;
+                                currentUser['name'] = nextName;
+                                currentUser['phoneNumber'] = nextPhone;
+                                await apiClient.setUserData(currentUser);
+
+                                if (!mounted) return;
+                                setState(() {
+                                  _leadUserName = nextName;
+                                  _leadUserPhone = nextPhone;
+                                });
+                                if (sheetContext.mounted) {
+                                  Navigator.pop(sheetContext, true);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Continue to WhatsApp',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    return result == true;
+  }
+
+  Future<void> _openWhatsAppLeadFlow({
+    required DoorstepServiceContent detail,
+    required String providerKind,
+    required String providerName,
+    String? providerSpecialization,
+  }) async {
+    final hasLeadContact = await _ensureLeadContactForWhatsApp();
+    if (!hasLeadContact) return;
+    await _launchWhatsAppWithMessage(
+      _buildWhatsAppLeadMessage(
+        detail: detail,
+        providerKind: providerKind,
+        providerName: providerName,
+        providerSpecialization: providerSpecialization,
+      ),
+    );
   }
 
   String _buildWhatsAppLeadMessage({
@@ -695,18 +870,16 @@ class _DoorstepServiceDetailsScreenState
                                   bottom:
                                       index == _nurses.length - 1 ? 0 : 14,
                                 ),
-                                child: _EnhancedNurseContactCard(
-                                  nurse: nurse,
-                                  onCall: () => _launchCall(_supportPhoneNumber),
-                                  onWhatsApp: () => _launchWhatsAppWithMessage(
-                                    _buildWhatsAppLeadMessage(
-                                      detail: detail,
-                                      providerKind: 'nurse',
-                                      providerName: nurse.fullName,
-                                      providerSpecialization:
-                                          nurse.specialization,
-                                    ),
-                                  ),
+                                 child: _EnhancedNurseContactCard(
+                                   nurse: nurse,
+                                   onCall: () => _launchCall(_supportPhoneNumber),
+                                   onWhatsApp: () => _openWhatsAppLeadFlow(
+                                     detail: detail,
+                                     providerKind: 'nurse',
+                                     providerName: nurse.fullName,
+                                     providerSpecialization:
+                                         nurse.specialization,
+                                   ),
                                   onBook: () => showServiceRequestSheet(
                                     context: context,
                                     serviceType: 'nurse',
@@ -787,20 +960,18 @@ class _DoorstepServiceDetailsScreenState
                                   bottom:
                                       index == _specialists.length - 1 ? 0 : 14,
                                 ),
-                                child: _EnhancedDoctorContactCard(
-                                  doctor: specialist,
-                                  onCall: () => _launchCall(phoneNumber),
-                                  onWhatsApp: () => _launchWhatsAppWithMessage(
-                                    _buildWhatsAppLeadMessage(
-                                      detail: detail,
-                                      providerKind: 'doctor',
-                                      providerName:
-                                          specialist.name ??
-                                          'Physiotherapy Specialist',
-                                      providerSpecialization:
-                                          specialist.specialization,
-                                    ),
-                                  ),
+                                 child: _EnhancedDoctorContactCard(
+                                   doctor: specialist,
+                                   onCall: () => _launchCall(phoneNumber),
+                                   onWhatsApp: () => _openWhatsAppLeadFlow(
+                                     detail: detail,
+                                     providerKind: 'doctor',
+                                     providerName:
+                                         specialist.name ??
+                                         'Physiotherapy Specialist',
+                                     providerSpecialization:
+                                         specialist.specialization,
+                                   ),
                                   onBook: () => showServiceRequestSheet(
                                     context: context,
                                     serviceType: 'physiotherapy',
@@ -836,18 +1007,16 @@ class _DoorstepServiceDetailsScreenState
                                 specialization: specialist.specialization,
                                 experienceYears: specialist.experienceYears ?? 0,
                                 rating: detail.rating > 0 ? detail.rating : 4.5,
-                                width: double.infinity,
-                                onBookAppointment: () =>
-                                    _openDoctorBooking(specialist.id),
-                                onWhatsApp: () => _launchWhatsAppWithMessage(
-                                  _buildWhatsAppLeadMessage(
-                                    detail: detail,
-                                    providerKind: 'doctor',
-                                    providerName: name,
-                                    providerSpecialization:
-                                        specialist.specialization,
-                                  ),
-                                ),
+                                 width: double.infinity,
+                                 onBookAppointment: () =>
+                                     _openDoctorBooking(specialist.id),
+                                 onWhatsApp: () => _openWhatsAppLeadFlow(
+                                   detail: detail,
+                                   providerKind: 'doctor',
+                                   providerName: name,
+                                   providerSpecialization:
+                                       specialist.specialization,
+                                 ),
                                 onChoose: () {
                                   context.pushNamed(
                                     RouteConstants

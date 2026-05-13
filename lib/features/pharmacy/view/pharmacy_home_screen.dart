@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:door/features/components/custom_appbar.dart';
 import 'package:door/main.dart';
@@ -20,15 +21,22 @@ class PharmacyHomeScreen extends StatefulWidget {
   State<PharmacyHomeScreen> createState() => _PharmacyHomeScreenState();
 }
 
-class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
+class _PharmacyHomeScreenState extends State<PharmacyHomeScreen>
+    with SingleTickerProviderStateMixin {
   static const _kCartKey = 'pharmacy_cart_v1';
   final PharmacyProductService _productService = PharmacyProductService();
   final ApiClient _apiClient = ApiClient();
   final TextEditingController _searchController = TextEditingController();
 
   late Future<ProductsResponse> _productsFuture;
+  List<PharmacyProduct> _allProducts = const [];
   final Map<String, int> _cart = {}; // productId -> quantity
   Map<String, PharmacyProduct> _productsById = {};
+  late final AnimationController _cartAttentionController;
+  late final Animation<double> _cartScaleAnimation;
+  Timer? _cartHintTimer;
+  bool _showCartHint = false;
+  String _cartHintMessage = 'Added to cart. Tap the bag to checkout.';
 
   int get _cartItemsCount =>
       _cart.values.fold<int>(0, (sum, q) => sum + (q > 0 ? q : 0));
@@ -36,12 +44,38 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _cartAttentionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+    _cartScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.16).chain(
+          CurveTween(curve: Curves.easeOutBack),
+        ),
+        weight: 45,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.16, end: 0.96).chain(
+          CurveTween(curve: Curves.easeInOut),
+        ),
+        weight: 20,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.96, end: 1.0).chain(
+          CurveTween(curve: Curves.easeOut),
+        ),
+        weight: 35,
+      ),
+    ]).animate(_cartAttentionController);
     _productsFuture = _fetchProducts();
     _loadCartFromLocal();
   }
 
   @override
   void dispose() {
+    _cartHintTimer?.cancel();
+    _cartAttentionController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -86,6 +120,7 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
 
     if (response.success && response.data != null) {
       setState(() {
+        _allProducts = response.data!.items;
         _productsById = {
           for (final p in response.data!.items) p.id: p
         };
@@ -102,6 +137,25 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
       _cart.update(product.id, (q) => q + qty, ifAbsent: () => qty);
     });
     _saveCartToLocal();
+    _playCartFeedback(product, qty: qty);
+  }
+
+  void _playCartFeedback(PharmacyProduct product, {int qty = 1}) {
+    _cartAttentionController.forward(from: 0);
+    _cartHintTimer?.cancel();
+    setState(() {
+      _showCartHint = true;
+      _cartHintMessage =
+          qty > 1
+              ? '$qty items of ${product.name} added. Tap the bag to checkout.'
+              : '${product.name} added to cart. Tap the bag to checkout.';
+    });
+    _cartHintTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() {
+        _showCartHint = false;
+      });
+    });
   }
 
   Future<void> _openCart() async {
@@ -129,10 +183,46 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
   }
 
   void _handleSearch(String query) {
+    final normalized = query.trim().toLowerCase();
+    if (_allProducts.isEmpty) {
+      setState(() {
+        _productsFuture = _fetchProducts(search: query.isEmpty ? null : query);
+      });
+      return;
+    }
+
+    final filtered = normalized.isEmpty
+        ? _allProducts
+        : _allProducts.where((product) {
+            final haystack = [
+              product.name,
+              product.category ?? '',
+              product.brand ?? '',
+              product.sku ?? '',
+              product.strength ?? '',
+              product.description ?? '',
+              product.dosageForm ?? '',
+              ...(product.tags ?? const <String>[]),
+            ].join(' ').toLowerCase();
+            return haystack.contains(normalized);
+          }).toList();
+
     setState(() {
-      _productsFuture = _fetchProducts(search: query.isEmpty ? null : query);
+      _productsFuture = Future.value(
+        ProductsResponse(
+          items: filtered,
+          pagination: snapPagination(filtered.length),
+        ),
+      );
     });
   }
+
+  PaginationInfo snapPagination(int total) => PaginationInfo(
+        total: total,
+        page: 1,
+        limit: total == 0 ? 1 : total,
+        totalPages: total == 0 ? 0 : 1,
+      );
 
   String _getImageUrl(PharmacyProduct product) {
     if (product.imageUrl.isNotEmpty) {
@@ -155,50 +245,66 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
         actions: [
           GestureDetector(
             onTap: _openCart,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  height: 36,
-                  width: 36,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFFF2F3F7),
+            child: ScaleTransition(
+              scale: _cartScaleAnimation,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          _showCartHint
+                              ? const Color(0xFFE7F0FF)
+                              : const Color(0xFFF2F3F7),
+                      border:
+                          _showCartHint
+                              ? Border.all(
+                                color: const Color(0xFF2F5DFB).withOpacity(0.25),
+                              )
+                              : null,
+                    ),
+                    child: Icon(
+                      Icons.shopping_bag_outlined,
+                      size: 20,
+                      color:
+                          _showCartHint
+                              ? const Color(0xFF2F5DFB)
+                              : AppColors.grey,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.shopping_bag_outlined,
-                    size: 20,
-                    color: AppColors.grey,
-                  ),
-                ),
-                if (_cartItemsCount > 0)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.blueAccent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$_cartItemsCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                  if (_cartItemsCount > 0)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$_cartItemsCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -207,6 +313,71 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            AnimatedSlide(
+              offset: _showCartHint ? Offset.zero : const Offset(0, -0.2),
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: AnimatedOpacity(
+                opacity: _showCartHint ? 1 : 0,
+                duration: const Duration(milliseconds: 180),
+                child: _showCartHint
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _openCart,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                constraints: const BoxConstraints(maxWidth: 290),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 11,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF4FF),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(0xFFCFE0FF),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 18,
+                                      color: Color(0xFF2F5DFB),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _cartHintMessage,
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF21407F),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 18,
+                                      color: Color(0xFF2F5DFB),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
@@ -261,13 +432,18 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
                         }
                         final items = snap.data?.items ?? [];
                         if (items.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Text('No products available.'),
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              _searchController.text.trim().isEmpty
+                                  ? 'No products available.'
+                                  : 'No products found for "${_searchController.text.trim()}".',
+                            ),
                           );
                         }
 
-                        // Split into popular and on sale
+                        final isSearching =
+                            _searchController.text.trim().isNotEmpty;
                         final half = (items.length / 2).ceil();
                         final popular = items.take(half).toList();
                         final sale = items.skip(half).toList();
@@ -275,45 +451,67 @@ class _PharmacyHomeScreenState extends State<PharmacyHomeScreen> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _SectionHeader(title: 'Popular Product'),
-                            const SizedBox(height: 12),
-                            _ProductHorizontalList(
-                              products: popular,
-                              onAdd: (p) => _addToCart(p),
-                              onTap: (p) async {
-                                final result = await Navigator.push<int>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ProductDetailPage(product: p),
-                                  ),
-                                );
-                                if (result != null && result > 0) {
-                                  _addToCart(p, qty: result);
-                                }
-                              },
-                              getImageUrl: _getImageUrl,
-                              showOldPrice: false,
-                            ),
-                            const SizedBox(height: 24),
-                            const _SectionHeader(title: 'Product on Sale'),
-                            const SizedBox(height: 12),
-                            _ProductHorizontalList(
-                              products: sale.isNotEmpty ? sale : popular,
-                              onAdd: (p) => _addToCart(p),
-                              onTap: (p) async {
-                                final result = await Navigator.push<int>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ProductDetailPage(product: p),
-                                  ),
-                                );
-                                if (result != null && result > 0) {
-                                  _addToCart(p, qty: result);
-                                }
-                              },
-                              getImageUrl: _getImageUrl,
-                              showOldPrice: true,
-                            ),
+                            if (isSearching) ...[
+                              const _SectionHeader(title: 'Search Results'),
+                              const SizedBox(height: 12),
+                              _ProductHorizontalList(
+                                products: items,
+                                onAdd: (p) => _addToCart(p),
+                                onTap: (p) async {
+                                  final result = await Navigator.push<int>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProductDetailPage(product: p),
+                                    ),
+                                  );
+                                  if (result != null && result > 0) {
+                                    _addToCart(p, qty: result);
+                                  }
+                                },
+                                getImageUrl: _getImageUrl,
+                                showOldPrice: true,
+                              ),
+                            ] else ...[
+                              const _SectionHeader(title: 'Popular Product'),
+                              const SizedBox(height: 12),
+                              _ProductHorizontalList(
+                                products: popular,
+                                onAdd: (p) => _addToCart(p),
+                                onTap: (p) async {
+                                  final result = await Navigator.push<int>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProductDetailPage(product: p),
+                                    ),
+                                  );
+                                  if (result != null && result > 0) {
+                                    _addToCart(p, qty: result);
+                                  }
+                                },
+                                getImageUrl: _getImageUrl,
+                                showOldPrice: false,
+                              ),
+                              const SizedBox(height: 24),
+                              const _SectionHeader(title: 'Product on Sale'),
+                              const SizedBox(height: 12),
+                              _ProductHorizontalList(
+                                products: sale.isNotEmpty ? sale : popular,
+                                onAdd: (p) => _addToCart(p),
+                                onTap: (p) async {
+                                  final result = await Navigator.push<int>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProductDetailPage(product: p),
+                                    ),
+                                  );
+                                  if (result != null && result > 0) {
+                                    _addToCart(p, qty: result);
+                                  }
+                                },
+                                getImageUrl: _getImageUrl,
+                                showOldPrice: true,
+                              ),
+                            ],
                             const SizedBox(height: 16),
                           ],
                         );
