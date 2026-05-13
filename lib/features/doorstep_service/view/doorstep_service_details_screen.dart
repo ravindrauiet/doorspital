@@ -3,8 +3,10 @@ import 'package:door/features/doorstep_service/components/service_request_sheet.
 import 'package:door/features/doorstep_service/services/doorstep_content_service.dart';
 import 'package:door/features/home/provider/bottom_navbar_provider.dart';
 import 'package:door/routes/route_constants.dart';
+import 'package:door/services/api_client.dart';
 import 'package:door/services/doctor_service.dart';
 import 'package:door/services/nurse_service.dart';
+import 'package:door/services/profile_service.dart';
 import 'package:door/services/models/doctor_models.dart';
 import 'package:door/services/models/nurse_models.dart';
 import 'package:flutter/cupertino.dart';
@@ -32,6 +34,7 @@ class _DoorstepServiceDetailsScreenState
   final DoorstepContentService _contentService = DoorstepContentService();
   final DoctorService _doctorService = DoctorService();
   final NurseService _nurseService = NurseService();
+  final ProfileService _profileService = ProfileService();
 
   bool _isLoading = true;
   bool _isSpecialistsLoading = false;
@@ -39,6 +42,8 @@ class _DoorstepServiceDetailsScreenState
   List<Doctor> _specialists = [];
   List<PublicNurse> _nurses = [];
   String? _selectedSubCategoryTitle;
+  String _leadUserName = '';
+  String _leadUserPhone = '';
 
   @override
   void initState() {
@@ -48,6 +53,7 @@ class _DoorstepServiceDetailsScreenState
 
   Future<void> _fetchData() async {
     try {
+      await _loadLeadContext();
       final detailResponse = await _contentService.getDoorstepServiceDetails(
         widget.serviceId,
       );
@@ -91,6 +97,29 @@ class _DoorstepServiceDetailsScreenState
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _loadLeadContext() async {
+    final savedUser = await ApiClient().getUserData();
+    _leadUserName =
+        savedUser?['userName']?.toString().trim() ??
+        savedUser?['name']?.toString().trim() ??
+        '';
+    _leadUserPhone = savedUser?['phoneNumber']?.toString().trim() ?? '';
+
+    final token = await ApiClient().getToken();
+    if (token == null || token.isEmpty) return;
+
+    final profileResponse = await _profileService.getProfile();
+    if (!profileResponse.success || profileResponse.data == null) return;
+
+    final profile = profileResponse.data!;
+    _leadUserName =
+        profile['userName']?.toString().trim() ??
+        profile['name']?.toString().trim() ??
+        _leadUserName;
+    _leadUserPhone =
+        profile['phoneNumber']?.toString().trim() ?? _leadUserPhone;
   }
 
   Future<void> _loadDoctorsForFilter(String filterValue) async {
@@ -156,6 +185,38 @@ class _DoorstepServiceDetailsScreenState
     final encoded = Uri.encodeComponent(message);
     final uri = Uri.parse('https://wa.me/$_supportWhatsAppNumber?text=$encoded');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  String _buildWhatsAppLeadMessage({
+    required DoorstepServiceContent detail,
+    required String providerKind,
+    required String providerName,
+    String? providerSpecialization,
+  }) {
+    final selectedService =
+        _selectedSubCategoryTitle?.trim().isNotEmpty == true
+            ? _selectedSubCategoryTitle!.trim()
+            : detail.title.trim();
+    final customerName =
+        _leadUserName.trim().isNotEmpty ? _leadUserName.trim() : 'Not provided';
+    final customerPhone =
+        _leadUserPhone.trim().isNotEmpty ? _leadUserPhone.trim() : 'Not provided';
+    final selectedProvider =
+        providerName.trim().isNotEmpty ? providerName.trim() : 'Not selected';
+    final normalizedProviderKind = providerKind.trim().isEmpty
+        ? 'provider'
+        : '${providerKind.trim()[0].toUpperCase()}${providerKind.trim().substring(1)}';
+
+    return [
+      'New doorstep service enquiry',
+      'Customer Name: $customerName',
+      'Customer Mobile: $customerPhone',
+      'Service: ${detail.title.trim()}',
+      'Selected Service Option: $selectedService',
+      '$normalizedProviderKind: $selectedProvider',
+      if (providerSpecialization != null && providerSpecialization.trim().isNotEmpty)
+        'Specialization: ${providerSpecialization.trim()}',
+    ].join('\n');
   }
 
   void _openDoctorBooking(String doctorId) {
@@ -634,14 +695,18 @@ class _DoorstepServiceDetailsScreenState
                                   bottom:
                                       index == _nurses.length - 1 ? 0 : 14,
                                 ),
-                                child: _NurseContactCard(
+                                child: _EnhancedNurseContactCard(
                                   nurse: nurse,
-                                  onCall: () => _launchCall(
-                                    nurse.phoneNumber.isNotEmpty
-                                        ? nurse.phoneNumber
-                                        : _supportPhoneNumber,
+                                  onCall: () => _launchCall(_supportPhoneNumber),
+                                  onWhatsApp: () => _launchWhatsAppWithMessage(
+                                    _buildWhatsAppLeadMessage(
+                                      detail: detail,
+                                      providerKind: 'nurse',
+                                      providerName: nurse.fullName,
+                                      providerSpecialization:
+                                          nurse.specialization,
+                                    ),
                                   ),
-                                  onWhatsApp: _launchWhatsApp,
                                   onBook: () => showServiceRequestSheet(
                                     context: context,
                                     serviceType: 'nurse',
@@ -650,17 +715,14 @@ class _DoorstepServiceDetailsScreenState
                                     providerKind: 'nurse',
                                     providerId: nurse.id,
                                     providerName: nurse.fullName,
-                                    providerPhone:
-                                        nurse.phoneNumber.isNotEmpty
-                                            ? nurse.phoneNumber
-                                            : _supportPhoneNumber,
+                                    providerPhone: _supportPhoneNumber,
                                     supportPhoneNumber: _supportPhoneNumber,
                                     supportWhatsAppNumber: _supportWhatsAppNumber,
                                   ),
-                                ),
-                              );
-                            }),
-                          )
+                                 ),
+                               );
+                             }),
+                           )
                       else if (_isSpecialistsLoading)
                         Container(
                           width: double.infinity,
@@ -725,10 +787,20 @@ class _DoorstepServiceDetailsScreenState
                                   bottom:
                                       index == _specialists.length - 1 ? 0 : 14,
                                 ),
-                                child: _DoctorContactCard(
+                                child: _EnhancedDoctorContactCard(
                                   doctor: specialist,
                                   onCall: () => _launchCall(phoneNumber),
-                                  onWhatsApp: _launchWhatsApp,
+                                  onWhatsApp: () => _launchWhatsAppWithMessage(
+                                    _buildWhatsAppLeadMessage(
+                                      detail: detail,
+                                      providerKind: 'doctor',
+                                      providerName:
+                                          specialist.name ??
+                                          'Physiotherapy Specialist',
+                                      providerSpecialization:
+                                          specialist.specialization,
+                                    ),
+                                  ),
                                   onBook: () => showServiceRequestSheet(
                                     context: context,
                                     serviceType: 'physiotherapy',
@@ -743,10 +815,10 @@ class _DoorstepServiceDetailsScreenState
                                     supportPhoneNumber: _supportPhoneNumber,
                                     supportWhatsAppNumber: _supportWhatsAppNumber,
                                   ),
-                                ),
-                              );
-                            }),
-                          )
+                                 ),
+                               );
+                             }),
+                           )
                       else
                         Column(
                           children: List.generate(_specialists.length, (index) {
@@ -767,7 +839,15 @@ class _DoorstepServiceDetailsScreenState
                                 width: double.infinity,
                                 onBookAppointment: () =>
                                     _openDoctorBooking(specialist.id),
-                                onWhatsApp: _launchWhatsApp,
+                                onWhatsApp: () => _launchWhatsAppWithMessage(
+                                  _buildWhatsAppLeadMessage(
+                                    detail: detail,
+                                    providerKind: 'doctor',
+                                    providerName: name,
+                                    providerSpecialization:
+                                        specialist.specialization,
+                                  ),
+                                ),
                                 onChoose: () {
                                   context.pushNamed(
                                     RouteConstants
@@ -805,6 +885,471 @@ class _DoorstepServiceDetailsScreenState
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _EnhancedNurseContactCard extends StatelessWidget {
+  final PublicNurse nurse;
+  final VoidCallback onCall;
+  final VoidCallback onWhatsApp;
+  final VoidCallback onBook;
+
+  const _EnhancedNurseContactCard({
+    required this.nurse,
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitleParts = [
+      nurse.qualificationLevel,
+      nurse.specialization,
+      nurse.city,
+    ].where((item) => item.trim().isNotEmpty).toList();
+    final primaryTag =
+        subtitleParts.isNotEmpty ? subtitleParts.first : 'Nursing support';
+    final secondaryTag =
+        subtitleParts.length > 1 ? subtitleParts.skip(1).join(' • ') : '';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8EBF4)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1F2A44).withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFFEFF3FF),
+                backgroundImage:
+                    nurse.avatarUrl.trim().isNotEmpty ? NetworkImage(nurse.avatarUrl) : null,
+                child: nurse.avatarUrl.trim().isEmpty
+                    ? Text(
+                        nurse.fullName.isNotEmpty
+                            ? nurse.fullName[0].toUpperCase()
+                            : 'N',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nurse.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FC),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            primaryTag,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF8F3),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${nurse.experienceYears}+ yrs exp',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF18794E),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (secondaryTag.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        secondaryTag,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F9FE),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE1E8FB)),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.support_agent_rounded,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All calls are managed by Doorspital support',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onCall,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: Color(0xFFD6DEFA)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.call_outlined, size: 17),
+                  label: const Text(
+                    'Call',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 46,
+                width: 48,
+                child: OutlinedButton(
+                  onPressed: onWhatsApp,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: Color(0xFFD6DEFA)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Icon(Icons.chat, size: 18),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onBook,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(46),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Book Now',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EnhancedDoctorContactCard extends StatelessWidget {
+  final Doctor doctor;
+  final VoidCallback onCall;
+  final VoidCallback onWhatsApp;
+  final VoidCallback onBook;
+
+  const _EnhancedDoctorContactCard({
+    required this.doctor,
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final phoneNumber =
+        doctor.phoneNumber?.trim().isNotEmpty == true
+            ? doctor.phoneNumber!.trim()
+            : _DoorstepServiceDetailsScreenState._supportPhoneNumber;
+    final specialistName = doctor.name ?? 'Physiotherapy Specialist';
+    final specialization =
+        doctor.specialization.isNotEmpty
+            ? doctor.specialization
+            : 'Physiotherapy';
+    final location = doctor.city?.trim().isNotEmpty == true
+        ? doctor.city!.trim()
+        : 'Location not set';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8EBF4)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1F2A44).withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFFEFF3FF),
+                child: Text(
+                  specialistName.isNotEmpty
+                      ? specialistName[0].toUpperCase()
+                      : 'P',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      specialistName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FC),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            specialization,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF8F3),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${doctor.experienceYears ?? 0}+ yrs exp',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF18794E),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      location,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F9FE),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE1E8FB)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.local_phone_outlined,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    phoneNumber ==
+                            _DoorstepServiceDetailsScreenState._supportPhoneNumber
+                        ? 'Call or book to connect with Doorspital support'
+                        : 'Call or book to connect with this physiotherapy specialist',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onCall,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: Color(0xFFD6DEFA)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.call_outlined, size: 17),
+                  label: const Text(
+                    'Call',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 46,
+                width: 48,
+                child: OutlinedButton(
+                  onPressed: onWhatsApp,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: Color(0xFFD6DEFA)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Icon(Icons.chat, size: 18),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onBook,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(46),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Book Now',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -899,9 +1444,9 @@ class _NurseContactCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            nurse.phoneNumber.trim().isNotEmpty ? nurse.phoneNumber : _DoorstepServiceDetailsScreenState._supportPhoneNumber,
-            style: const TextStyle(
+          const Text(
+            'All calls are managed by Doorspital support',
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
