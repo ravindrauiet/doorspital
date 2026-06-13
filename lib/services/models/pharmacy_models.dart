@@ -362,6 +362,7 @@ class CreateOrderRequest {
   final List<OrderItemRequest> items;
   final double discount;
   final String paymentMethod;
+  final String? paymentStatus;
   final ShippingAddress shippingAddress;
   final String? notes;
   final Map<String, dynamic>? metadata;
@@ -370,6 +371,7 @@ class CreateOrderRequest {
     required this.items,
     this.discount = 0,
     this.paymentMethod = 'cod',
+    this.paymentStatus,
     required this.shippingAddress,
     this.notes,
     this.metadata,
@@ -380,6 +382,7 @@ class CreateOrderRequest {
       'items': items.map((item) => item.toJson()).toList(),
       'discount': discount,
       'paymentMethod': paymentMethod,
+      if (paymentStatus != null) 'paymentStatus': paymentStatus,
       'shippingAddress': shippingAddress.toJson(),
       if (notes != null) 'notes': notes,
       if (metadata != null) 'metadata': metadata,

@@ -12,7 +12,12 @@
           "package_name": "com.company.doorspitals"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "815229293734-h5ja6u87v90466gholqcacrcrlct3q1g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCPYh_VNEGWjhtAsMIMhUDbWtwLMeYrsA4"
@@ -20,7 +25,65 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "815229293734-h5ja6u87v90466gholqcacrcrlct3q1g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:815229293734:android:9a3ae9769ebf62b83b1067",
+        "android_client_info": {
+          "package_name": "com.doorspitals.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "815229293734-7uj9r320p332uiaqkas34bm0pnaencda.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doorspitals.app",
+            "certificate_hash": "1246184ed9660376d90c821129f770fe6104565e"
+          }
+        },
+        {
+          "client_id": "815229293734-8364dild6ka7v2o3d8r0p9opuktvvuqs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doorspitals.app",
+            "certificate_hash": "186a1d492ba8a13a6a09b305920dfe3156a04d3e"
+          }
+        },
+        {
+          "client_id": "815229293734-b0gedigc3j5sd0vrqkmrq4tfgqa9jh6d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doorspitals.app",
+            "certificate_hash": "9bc8c1f6c16e6477ab3df8436f8dad9f69ee5206"
+          }
+        },
+        {
+          "client_id": "815229293734-h5ja6u87v90466gholqcacrcrlct3q1g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPYh_VNEGWjhtAsMIMhUDbWtwLMeYrsA4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "815229293734-h5ja6u87v90466gholqcacrcrlct3q1g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

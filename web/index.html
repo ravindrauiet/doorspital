@@ -109,6 +109,49 @@
       document.body.style.background = "transparent";
     }
   </script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    window.doorspitalRazorpay = {
+      open: function (optionsJson, onSuccess, onError) {
+        try {
+          const options = JSON.parse(optionsJson);
+          const previousModal = options.modal || {};
+
+          options.handler = function (response) {
+            onSuccess(JSON.stringify(response));
+          };
+
+          options.modal = {
+            ...previousModal,
+            ondismiss: function () {
+              if (typeof previousModal.ondismiss === "function") {
+                previousModal.ondismiss();
+              }
+              onError(
+                JSON.stringify({
+                  type: "modal.dismissed",
+                  message: "Payment checkout was dismissed.",
+                })
+              );
+            },
+          };
+
+          const razorpay = new Razorpay(options);
+          razorpay.on("payment.failed", function (response) {
+            onError(JSON.stringify(response));
+          });
+          razorpay.open();
+        } catch (error) {
+          onError(
+            JSON.stringify({
+              type: "checkout.error",
+              message: error && error.message ? error.message : String(error),
+            })
+          );
+        }
+      },
+    };
+  </script>
 </head>
 <body>
   <picture id="splash">

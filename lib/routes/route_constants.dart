@@ -12,6 +12,7 @@ class RouteConstants {
   static const patientDetailsScreen = "/patient-details-screen";
   static const selectPackageScreen = "/select-package-screen";
   static const placeAppointmentScreen = "/place-appoint-ment-screen";
+  static const paymentPage = "/payment-page";
   static const paymentSuccessScreen = "/payment-success-screen";
   static const notificationsScreen = "/notifications-screen";
   static const editProfileScreen = "/edit-profile-screen";
@@ -24,8 +25,10 @@ class RouteConstants {
   static const chatImagePreviewScreen = "/chat-image-preview-screen";
   static const articlesListScreen = "/articles-list-screen";
   static const articleDetailScreen = "/article-detail-screen";
-  static const doorstepServiceDetailsScreen = "/doorstep-service-details-screen";
-  static const doorstepSpecialistDetailsScreen = "/doorstep-specialist-details-screen";
+  static const doorstepServiceDetailsScreen =
+      "/doorstep-service-details-screen";
+  static const doorstepSpecialistDetailsScreen =
+      "/doorstep-specialist-details-screen";
   static const termsAndConditionsScreen = "/terms-and-conditions-screen";
   static const privacyPolicyScreen = "/privacy-policy-screen";
   static const clinicSpecialityScreen = "/clinic-speciality-screen";

@@ -2,9 +2,64 @@ import 'package:door/services/api_client.dart';
 import 'package:door/services/models/api_response.dart';
 import 'package:door/services/models/auth_models.dart';
 import 'package:door/services/push_notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final ApiClient _client = ApiClient();
+  final GoogleSignIn _googleSignIn =
+      GoogleSignIn(scopes: <String>['email', 'profile']);
+
+  firebase_auth.FirebaseAuth get _firebaseAuth =>
+      firebase_auth.FirebaseAuth.instance;
+
+  Future<ApiResponse<SignInResponse>> _storeSuccessfulSignIn(
+    Map<String, dynamic> data, {
+    Map<String, dynamic>? fallbackUser,
+  }) async {
+    final token = (data['token'] ?? '').toString();
+    final responseUser = <String, dynamic>{};
+
+    final rawUser = data['user'];
+    if (rawUser is Map) {
+      responseUser.addAll(Map<String, dynamic>.from(rawUser));
+    }
+    if (responseUser.isEmpty && fallbackUser != null) {
+      responseUser.addAll(fallbackUser);
+    }
+
+    if (responseUser['id'] == null && responseUser['_id'] != null) {
+      responseUser['id'] = responseUser['_id'].toString();
+    }
+    if (responseUser['id'] != null && responseUser['id'] is! String) {
+      responseUser['id'] = responseUser['id'].toString();
+    }
+    if ((responseUser['userName'] == null ||
+            responseUser['userName'].toString().trim().isEmpty) &&
+        responseUser['email'] != null) {
+      responseUser['userName'] = responseUser['email'].toString().split('@')[0];
+    }
+
+    if (token.isEmpty || responseUser.isEmpty) {
+      return ApiResponse<SignInResponse>(
+        success: false,
+        message: 'Sign in failed',
+      );
+    }
+
+    await _client.setToken(token);
+    await _client.setUserData(responseUser);
+    await PushNotificationService().syncTokenIfAuthenticated();
+
+    return ApiResponse<SignInResponse>(
+      success: true,
+      message: data['message']?.toString(),
+      data: SignInResponse(
+        token: token,
+        user: User.fromJson(responseUser),
+      ),
+    );
+  }
 
   Future<ApiResponse<SignInResponse>> signIn(SignInRequest request) async {
     try {
@@ -22,60 +77,78 @@ class AuthService {
       print('📦 Parsed data: $data');
 
       if (response.statusCode == 200 && data['success'] == true) {
-        // Ensure user data is properly formatted
-        final userData = data['user'] ?? {};
-        print('👤 User data: $userData');
-
-        // Convert user._id to string if it's an ObjectId
-        if (userData['id'] != null && userData['id'] is! String) {
-          userData['id'] = userData['id'].toString();
-        }
-        if (userData['_id'] != null) {
-          userData['id'] = userData['_id'].toString();
-        }
-
-        // Save token and user data
-        final token = data['token'] ?? '';
-        if (token.isEmpty) {
-          print('⚠️ Warning: Token is empty!');
-        }
-
-        await _client.setToken(token);
-        await _client.setUserData(userData);
-        await PushNotificationService().syncTokenIfAuthenticated();
-
-        print('✅ Sign in successful, token saved');
-        print('👤 User role: ${userData['role']}');
-
-        try {
-          final signInResponse = SignInResponse.fromJson(data);
-          return ApiResponse<SignInResponse>(
-            success: true,
-            message: data['message'],
-            data: signInResponse,
-          );
-        } catch (parseError) {
-          print('❌ Error parsing SignInResponse: $parseError');
-          // Even if parsing fails, if we have token and user data, consider it successful
-          if (token.isNotEmpty && userData.isNotEmpty) {
-            return ApiResponse<SignInResponse>(
-              success: true,
-              message: data['message'] ?? 'Sign in successful',
-              data: SignInResponse(token: token, user: User.fromJson(userData)),
-            );
-          }
-          throw parseError;
-        }
-      } else {
-        print('❌ Sign in failed: ${data['message']}');
-        return ApiResponse<SignInResponse>(
-          success: false,
-          message: data['message'] ?? 'Sign in failed',
-          errors: data['errors'],
-        );
+        return _storeSuccessfulSignIn(data);
       }
+
+      print('❌ Sign in failed: ${data['message']}');
+      return ApiResponse<SignInResponse>(
+        success: false,
+        message: data['message'] ?? 'Sign in failed',
+        errors: data['errors'],
+      );
     } catch (e, stackTrace) {
       print('❌ Sign in error: $e');
+      print('❌ Stack trace: $stackTrace');
+      return ApiResponse<SignInResponse>(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResponse<SignInResponse>> signInWithGoogle() async {
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return ApiResponse<SignInResponse>(
+          success: false,
+          message: 'Google sign-in cancelled',
+        );
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = firebase_auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final firebaseResult =
+          await _firebaseAuth.signInWithCredential(credential);
+      final firebaseUser = firebaseResult.user ?? _firebaseAuth.currentUser;
+
+      final idToken = await firebaseUser?.getIdToken(true);
+      if (idToken == null || idToken.isEmpty) {
+        return ApiResponse<SignInResponse>(
+          success: false,
+          message: 'Unable to obtain Firebase token for Google sign-in',
+        );
+      }
+
+      final response = await _client.post(
+        '/admin/firebase-config',
+        body: {'idToken': idToken},
+        includeAuth: false,
+      );
+      final data = _client.parseResponse(response);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final fallbackUser = <String, dynamic>{
+          'id': firebaseUser?.uid ?? '',
+          'email': firebaseUser?.email ?? googleUser.email,
+          'userName': firebaseUser?.displayName ??
+              googleUser.displayName ??
+              googleUser.email.split('@').first,
+          'role': 'user',
+          'avatarUrl': firebaseUser?.photoURL ?? googleUser.photoUrl ?? '',
+        };
+
+        return _storeSuccessfulSignIn(data, fallbackUser: fallbackUser);
+      }
+
+      return ApiResponse<SignInResponse>(
+        success: false,
+        message: data['message']?.toString() ?? 'Google sign-in failed',
+        errors: data['errors'],
+      );
+    } catch (e, stackTrace) {
+      print('❌ Google sign-in error: $e');
       print('❌ Stack trace: $stackTrace');
       return ApiResponse<SignInResponse>(success: false, message: e.toString());
     }
@@ -99,13 +172,13 @@ class AuthService {
           message: data['message'],
           data: data['data'],
         );
-      } else {
-        return ApiResponse<Map<String, dynamic>>(
-          success: false,
-          message: data['message'] ?? 'Sign up failed',
-          errors: data['errors'],
-        );
       }
+
+      return ApiResponse<Map<String, dynamic>>(
+        success: false,
+        message: data['message'] ?? 'Sign up failed',
+        errors: data['errors'],
+      );
     } catch (e) {
       return ApiResponse<Map<String, dynamic>>(
         success: false,
@@ -116,6 +189,8 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
+      await _googleSignIn.signOut();
+      await _firebaseAuth.signOut();
       await PushNotificationService().unregisterTokenFromBackend();
       await _client.post('/auth/sign-out');
     } catch (e) {

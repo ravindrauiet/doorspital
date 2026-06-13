@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:door/services/models/pharmacy_models.dart';
 import 'package:door/services/pharmacy_order_service.dart';
+import 'package:door/services/payment_service.dart';
+import 'package:door/services/razorpay_checkout_bridge.dart';
 import 'package:door/services/api_client.dart';
-import 'package:door/services/models/api_response.dart';
 import 'package:door/features/pharmacy/view/address_form_screen.dart';
+
+enum PharmacyPaymentMethod { cod, razorpay }
 
 class CartPage extends StatefulWidget {
   final Map<String, PharmacyProduct> productsById;
@@ -24,8 +27,10 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   late Map<String, int> _qty;
   final PharmacyOrderService _orderService = PharmacyOrderService();
+  final PaymentService _paymentService = PaymentService();
   final ApiClient _apiClient = ApiClient();
   bool _isCheckingOut = false;
+  PharmacyPaymentMethod _paymentMethod = PharmacyPaymentMethod.razorpay;
 
   @override
   void initState() {
@@ -74,30 +79,113 @@ class _CartPageState extends State<CartPage> {
     setState(() => _isCheckingOut = true);
 
     try {
-      // Build order items
       final items = _qty.entries
-          .map((e) => OrderItemRequest(
-                productId: e.key,
-                quantity: e.value,
-              ))
+          .map(
+            (e) => OrderItemRequest(
+              productId: e.key,
+              quantity: e.value,
+            ),
+          )
           .toList();
 
-      final orderRequest = CreateOrderRequest(
-        items: items,
-        discount: _discount,
-        paymentMethod: 'cod',
-        shippingAddress: address,
-        notes: 'Order from mobile app',
-        metadata: {'source': 'mobile-app'},
+      if (_paymentMethod == PharmacyPaymentMethod.cod) {
+        final orderRequest = CreateOrderRequest(
+          items: items,
+          discount: _discount,
+          paymentMethod: 'cod',
+          shippingAddress: address,
+          notes: 'Order from mobile app',
+          metadata: {'source': 'mobile-app', 'payment_mode': 'cod'},
+        );
+
+        final response = await _orderService.createOrder(orderRequest);
+
+        if (response.success) {
+          await widget.onCheckout?.call();
+
+          if (mounted) {
+            await showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => _PaymentSuccessDialog(
+                orderId: response.data?.id,
+                onContinue: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop<Map<String, int>>(<String, int>{});
+                },
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response.message ?? 'Failed to place order'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+        return;
+      }
+
+      final amountPaise = (_total * 100).round();
+      if (amountPaise < 100) {
+        throw Exception('Minimum payment amount is 100 paise');
+      }
+
+      final order = await _paymentService.createOrder(
+        amountPaise: amountPaise,
+        currency: 'INR',
+        receipt: 'pharmacy_${DateTime.now().millisecondsSinceEpoch}',
       );
 
-      final response = await _orderService.createOrder(orderRequest);
+      final checkoutResult = await openRazorpayCheckout(
+        RazorpayCheckoutRequest(
+          keyId: order.keyId,
+          amount: order.amount,
+          currency: order.currency,
+          orderId: order.orderId,
+          name: 'Doorspital Pharmacy',
+          description: 'Pharmacy order payment',
+          prefillName: address.fullName,
+          notes: {
+            'source': 'pharmacy',
+            'payment_mode': 'razorpay',
+            'customer_name': address.fullName,
+            'amount_paise': amountPaise.toString(),
+          },
+        ),
+      );
+
+      await _paymentService.verifyPayment(
+        razorpayOrderId: checkoutResult.orderId,
+        razorpayPaymentId: checkoutResult.paymentId,
+        razorpaySignature: checkoutResult.signature,
+      );
+
+      final paidOrderRequest = CreateOrderRequest(
+        items: items,
+        discount: _discount,
+        paymentMethod: 'razorpay',
+        paymentStatus: 'paid',
+        shippingAddress: address,
+        notes: 'Order from mobile app',
+        metadata: {
+          'source': 'mobile-app',
+          'payment_mode': 'razorpay',
+          'razorpay_order_id': checkoutResult.orderId,
+          'razorpay_payment_id': checkoutResult.paymentId,
+          'razorpay_signature': checkoutResult.signature,
+          'razorpay_checkout_order_id': order.orderId,
+        },
+      );
+
+      final response = await _orderService.createOrder(paidOrderRequest);
 
       if (response.success) {
-        // Clear cart
         await widget.onCheckout?.call();
 
-        // Show success dialog
         if (mounted) {
           await showDialog<void>(
             context: context,
@@ -105,7 +193,7 @@ class _CartPageState extends State<CartPage> {
             builder: (_) => _PaymentSuccessDialog(
               orderId: response.data?.id,
               onContinue: () {
-                Navigator.of(context).pop(); // close dialog
+                Navigator.of(context).pop();
                 Navigator.of(context).pop<Map<String, int>>(<String, int>{});
               },
             ),
@@ -275,21 +363,22 @@ class _CartPageState extends State<CartPage> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE6EBF1)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(
-              children: [
-                Text('Cash on Delivery (COD)',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-                Spacer(),
-                Icon(Icons.payment, color: Colors.green),
-              ],
-            ),
+          _PaymentMethodTile(
+            title: 'Razorpay Online Payment',
+            subtitle: 'Pay now with card, UPI, wallet, or net banking',
+            value: PharmacyPaymentMethod.razorpay,
+            groupValue: _paymentMethod,
+            onChanged: (value) => setState(() => _paymentMethod = value!),
+            icon: Icons.payments_outlined,
+          ),
+          const SizedBox(height: 8),
+          _PaymentMethodTile(
+            title: 'Cash on Delivery (COD)',
+            subtitle: 'Pay when your order is delivered',
+            value: PharmacyPaymentMethod.cod,
+            groupValue: _paymentMethod,
+            onChanged: (value) => setState(() => _paymentMethod = value!),
+            icon: Icons.local_shipping_outlined,
           ),
           const SizedBox(height: 24),
 
@@ -368,6 +457,90 @@ class _CartPageState extends State<CartPage> {
           ],
         ),
       );
+}
+
+class _PaymentMethodTile extends StatelessWidget {
+  const _PaymentMethodTile({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final PharmacyPaymentMethod value;
+  final PharmacyPaymentMethod groupValue;
+  final ValueChanged<PharmacyPaymentMethod?> onChanged;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == groupValue;
+    return InkWell(
+      onTap: () => onChanged(value),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: selected ? const Color(0xFF2F5DFB) : const Color(0xFFE6EBF1),
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 40,
+              width: 40,
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFEFF6FF)
+                    : const Color(0xFFF4F7FB),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: selected ? const Color(0xFF2F5DFB) : Colors.black54,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_off,
+              color: selected ? const Color(0xFF2F5DFB) : Colors.black38,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _CartItemTile extends StatelessWidget {
@@ -547,7 +720,7 @@ class _PaymentSuccessDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 24,
               offset: const Offset(0, 12),
             ),

@@ -7,6 +7,7 @@ import 'package:door/services/auth_service.dart';
 import 'package:door/services/local_notification_manager.dart';
 import 'package:door/services/models/auth_models.dart';
 import 'package:door/utils/theme/colors.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,7 +23,16 @@ class _SignInScreenState extends State<SignInScreen> {
   final _password = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
+  bool _googleLoading = false;
   final _authService = AuthService();
+
+  Future<void> _handleSuccessfulSignIn() async {
+    LocalNotificationManager().startPolling(
+      interval: const Duration(seconds: 30),
+    );
+    if (!mounted) return;
+    context.pushReplacementNamed(RouteConstants.bottomNavBarScreen);
+  }
 
   Future<void> _signIn() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -35,29 +45,16 @@ class _SignInScreenState extends State<SignInScreen> {
         password: _password.text,
       );
 
-      print('🔐 Sign in attempt for: ${request.email}');
       final response = await _authService.signIn(request);
 
       if (!mounted) return;
 
-      print(
-        '📥 Sign in response - success: ${response.success}, data: ${response.data}',
-      );
-
       if (response.success && response.data != null) {
-        print('✅ Sign in successful, navigating to home');
-        LocalNotificationManager().startPolling(
-          interval: const Duration(seconds: 30),
-        );
-        // Successfully signed in
-        context.pushReplacementNamed(RouteConstants.bottomNavBarScreen);
+        await _handleSuccessfulSignIn();
       } else {
-        print('❌ Sign in failed: ${response.message}');
         _showError(response.message ?? 'Sign in failed');
       }
-    } catch (e, stackTrace) {
-      print('❌ Sign in exception: $e');
-      print('❌ Stack trace: $stackTrace');
+    } catch (e) {
       if (!mounted) return;
       _showError('Network error: $e');
     } finally {
@@ -67,8 +64,30 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _googleLoading = true);
+
+    try {
+      final response = await _authService.signInWithGoogle();
+      if (!mounted) return;
+
+      if (response.success && response.data != null) {
+        await _handleSuccessfulSignIn();
+      } else if ((response.message ?? '').isNotEmpty &&
+          response.message != 'Google sign-in cancelled') {
+        _showError(response.message ?? 'Google sign-in failed');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Google sign-in failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _googleLoading = false);
+      }
+    }
+  }
+
   void _showError(String message) {
-    // Show error in snackbar with close button
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -89,6 +108,41 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
+  Widget _buildGoogleButton() {
+    return SizedBox(
+      width: screenWidth - 20,
+      height: 58,
+      child: OutlinedButton.icon(
+        onPressed: _loading || _googleLoading ? null : _signInWithGoogle,
+        icon: _googleLoading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const FaIcon(
+                FontAwesomeIcons.google,
+                size: 18,
+                color: Colors.black87,
+              ),
+        label: Text(
+          _googleLoading ? 'Signing in...' : 'Continue with Google',
+          style: const TextStyle(
+            color: AppColors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFFD0D7DE)),
+          backgroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -101,7 +155,6 @@ class _SignInScreenState extends State<SignInScreen> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: CustomAppBar(title: 'Sign In', centerTitle: true),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 30),
         child: Form(
@@ -109,12 +162,11 @@ class _SignInScreenState extends State<SignInScreen> {
           child: Column(
             children: [
               const SizedBox(height: 30),
-
               CustomTextField(
                 radius: 6,
                 controller: _emailController,
                 hint: 'Enter your email',
-                prefixIcon: Icon(Icons.mail_outline),
+                prefixIcon: const Icon(Icons.mail_outline),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Email is required';
                   if (!v.contains('@')) return 'Enter a valid email';
@@ -141,8 +193,6 @@ class _SignInScreenState extends State<SignInScreen> {
                   horizontal: 20,
                 ),
               ),
-
-              // Password
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -159,16 +209,17 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
               CustomElevatedButton(
                 width: screenWidth - 20,
                 height: 60,
                 borderRadius: 50,
-                label: "Sign In",
+                label: 'Sign In',
                 isLoading: _loading,
                 onPressed: _signIn,
               ),
-
+              const SizedBox(height: 16),
+              _buildGoogleButton(),
+              const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -193,38 +244,6 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-
-              /*
-              // OR divider
-              const Row(
-                children: [
-                  Expanded(child: Divider(color: AppColors.grey)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'OR',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: AppColors.textPrimary)),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              // Social stubs
-              SocialButton(
-                text: 'Sign in with Google',
-                imageUrl: Images.googleLogo,
-                onPressed: () {},
-              ),
-              const SizedBox(height: 16),
-              SocialButton(
-                text: 'Sign in with Facebook',
-                imageUrl: Images.facebookLogo,
-                onPressed: () {},
-              ),
-              */
               const SizedBox(height: 32),
             ],
           ),

@@ -21,7 +21,7 @@ val missingKeystoreProperties = requiredKeystoreProperties.filter {
 val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
 
 android {
-    namespace = "com.company.doorspitals"
+    namespace = "com.doorspitals.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -37,7 +37,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.company.doorspitals"
+        applicationId = "com.doorspitals.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

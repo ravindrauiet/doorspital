@@ -73,7 +73,9 @@ class PlaceAppointmentScreen extends StatelessWidget {
                                       ),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
-                                        borderRadius: BorderRadius.circular(5.0),
+                                        borderRadius: BorderRadius.circular(
+                                          5.0,
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -157,7 +159,6 @@ class PlaceAppointmentScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     _infoRow('Duration', '30minutes'),
 
-
                     // PATIENT INFORMATION
                     const Text(
                       'Patient Information',
@@ -183,9 +184,19 @@ class PlaceAppointmentScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: CustomElevatedButton(
-                label: 'Pay 12',
+                label: 'Pay Rs. 799',
                 onPressed: () {
-                  context.pushNamed(RouteConstants.paymentSuccessScreen);
+                  context.pushNamed(
+                    RouteConstants.paymentPage,
+                    extra: const {
+                      'doctorName': 'Dr. Rishi',
+                      'patientName': 'James Roger',
+                      'dateLabel': '12 Nov, 2025',
+                      'timeLabel': '2:00 to 2:30 PM',
+                      'doctorFeePerHour': 799,
+                      'currency': 'Rs. ',
+                    },
+                  );
                 },
                 borderRadius: 5.0,
                 width: double.infinity,

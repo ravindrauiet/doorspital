@@ -1,19 +1,21 @@
-// lib/payment_page.dart
+import 'package:door/routes/route_constants.dart';
+import 'package:door/services/payment_service.dart';
+import 'package:door/services/razorpay_checkout_bridge.dart';
 import 'package:flutter/material.dart';
-// FontFeature
+import 'package:go_router/go_router.dart';
 
 enum PaymentMethod { card, paypal, axisBank }
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({
     super.key,
-    this.amount, // secondary (only if fee isn't provided)
-    this.currency = '₹', // default currency
+    this.amount,
+    this.currency = 'Rs. ',
     this.patientName,
     this.doctorName,
     this.dateLabel,
     this.timeLabel,
-    this.doctorFeePerHour, // ✅ PRIMARY source for price
+    this.doctorFeePerHour,
   });
 
   final num? amount;
@@ -29,8 +31,12 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-  final PageController _cardController = PageController(viewportFraction: .82);
+  final PageController _cardController = PageController(viewportFraction: 0.82);
+  final PaymentService _paymentService = PaymentService();
+
   PaymentMethod _method = PaymentMethod.card;
+  bool _isProcessing = false;
+  String? _statusMessage;
 
   Map<String, dynamic> _readRouteArgs() {
     final args = ModalRoute.of(context)?.settings.arguments;
@@ -40,8 +46,7 @@ class _PaymentPageState extends State<PaymentPage> {
     return const {};
   }
 
-  /// Prefer fee keys over generic amount keys
-  num? _pickAmountFromArgs(Map<String, dynamic> m) {
+  num? _pickAmountFromArgs(Map<String, dynamic> values) {
     const keysInPriorityOrder = [
       'feePerHour',
       'doctorFeePerHour',
@@ -50,32 +55,92 @@ class _PaymentPageState extends State<PaymentPage> {
       'total',
       'price',
     ];
-    for (final k in keysInPriorityOrder) {
-      final v = m[k];
-      if (v is num) return v;
-      if (v is String) {
-        final p = num.tryParse(v);
-        if (p != null) return p;
+
+    for (final key in keysInPriorityOrder) {
+      final value = values[key];
+      if (value is num) return value;
+      if (value is String) {
+        final parsed = num.tryParse(value);
+        if (parsed != null) return parsed;
       }
     }
     return null;
   }
 
-  String? _pickCurrencyFromArgs(Map<String, dynamic> m) {
-    const keys = ['currency', 'currencySymbol'];
-    for (final k in keys) {
-      final v = m[k];
-      if (v is String && v.trim().isNotEmpty) return v.trim();
-    }
-    return null;
-  }
-
   String _formatCurrency(num value, String currency) {
-    final isInt = value == value.roundToDouble();
-    final formatted = isInt
+    final isWhole = value == value.roundToDouble();
+    final formatted = isWhole
         ? value.toStringAsFixed(0)
         : value.toStringAsFixed(2);
     return '$currency$formatted';
+  }
+
+  int _toPaise(num value) => (value * 100).round();
+
+  Future<void> _startPayment({
+    required int amountPaise,
+    required String doctorName,
+    required String patientName,
+    required String displayAmount,
+  }) async {
+    setState(() {
+      _isProcessing = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final order = await _paymentService.createOrder(
+        amountPaise: amountPaise,
+        currency: 'INR',
+        receipt: 'appointment_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      final checkoutResult = await openRazorpayCheckout(
+        RazorpayCheckoutRequest(
+          keyId: order.keyId,
+          amount: order.amount,
+          currency: order.currency,
+          orderId: order.orderId,
+          name: 'Doorspital',
+          description: 'Doctor appointment payment',
+          prefillName: patientName,
+          notes: {
+            'doctor_name': doctorName,
+            'patient_name': patientName,
+            'display_amount': displayAmount,
+          },
+        ),
+      );
+
+      await _paymentService.verifyPayment(
+        razorpayOrderId: checkoutResult.orderId,
+        razorpayPaymentId: checkoutResult.paymentId,
+        razorpaySignature: checkoutResult.signature,
+      );
+
+      if (!mounted) return;
+      context.pushNamed(RouteConstants.paymentSuccessScreen);
+    } on RazorpayCheckoutException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    setState(() {
+      _statusMessage = message;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -86,27 +151,21 @@ class _PaymentPageState extends State<PaymentPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Resolve everything safely each build (no late fields).
     final args = _readRouteArgs();
     final argAmount = _pickAmountFromArgs(args);
-    final argCurrency = _pickCurrencyFromArgs(args);
-
-    // ✅ Prefer the fee coming from PlaceAppointmentPage
     final effectiveAmount =
         widget.doctorFeePerHour ?? argAmount ?? widget.amount ?? 0;
-
-    final effectiveCurrency =
-        (widget.currency == '\$' || widget.currency.isEmpty)
-        ? '₹'
+    final effectiveCurrency = widget.currency.trim().isEmpty
+        ? 'Rs. '
         : widget.currency;
+    final amountPaise = _toPaise(effectiveAmount);
 
     final doctorName =
-        widget.doctorName ?? (args['doctorName'] as String?) ?? '—';
+        widget.doctorName ?? (args['doctorName'] as String?) ?? '-';
     final patientName =
-        widget.patientName ?? (args['patientName'] as String?) ?? '—';
-    final dateLabel = widget.dateLabel ?? (args['dateLabel'] as String?) ?? '—';
-    final timeLabel = widget.timeLabel ?? (args['timeLabel'] as String?) ?? '—';
-
+        widget.patientName ?? (args['patientName'] as String?) ?? '-';
+    final dateLabel = widget.dateLabel ?? (args['dateLabel'] as String?) ?? '-';
+    final timeLabel = widget.timeLabel ?? (args['timeLabel'] as String?) ?? '-';
     final formattedAmount = _formatCurrency(effectiveAmount, effectiveCurrency);
 
     return Scaffold(
@@ -133,7 +192,6 @@ class _PaymentPageState extends State<PaymentPage> {
               currency: effectiveCurrency,
             ),
             const SizedBox(height: 20),
-
             Row(
               children: [
                 _networkBadge(),
@@ -143,16 +201,17 @@ class _PaymentPageState extends State<PaymentPage> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
-                Radio<PaymentMethod>(
-                  value: PaymentMethod.card,
-                  groupValue: _method,
-                  onChanged: (v) => setState(() => _method = v!),
-                  visualDensity: VisualDensity.compact,
+                IconButton(
+                  onPressed: () => setState(() => _method = PaymentMethod.card),
+                  icon: Icon(
+                    _method == PaymentMethod.card
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-
             SizedBox(
               height: 180,
               child: PageView(
@@ -177,13 +236,12 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
             ),
             const SizedBox(height: 12),
-
             OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Add New Card tapped')),
-                );
-              },
+              onPressed: _isProcessing
+                  ? null
+                  : () => _showMessage(
+                      'Saved cards are not wired yet. Use the pay button below to continue.',
+                    ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -194,61 +252,71 @@ class _PaymentPageState extends State<PaymentPage> {
               label: const Text('Add New Card'),
             ),
             const SizedBox(height: 12),
-
             _PaymentRadioTile(
               icon: Icons.account_balance_wallet_outlined,
               brandColor: Colors.blue.shade700,
               title: 'Paypal',
               value: PaymentMethod.paypal,
               groupValue: _method,
-              onChanged: (v) => setState(() => _method = v!),
+              onChanged: (value) => setState(() => _method = value!),
             ),
             const SizedBox(height: 8),
-
             _PaymentRadioTile(
               icon: Icons.account_balance_outlined,
               brandColor: const Color(0xFFD32F2F),
               title: 'Axis Bank',
               value: PaymentMethod.axisBank,
               groupValue: _method,
-              onChanged: (v) => setState(() => _method = v!),
+              onChanged: (value) => setState(() => _method = value!),
             ),
+            if (_statusMessage != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                _statusMessage!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ],
         ),
       ),
-
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: SizedBox(
           height: 54,
           child: ElevatedButton(
-            onPressed: () {
-              final methodName = {
-                PaymentMethod.card: 'Card',
-                PaymentMethod.paypal: 'PayPal',
-                PaymentMethod.axisBank: 'Axis Bank',
-              }[_method];
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Payment successful: $formattedAmount via $methodName',
+            onPressed: _isProcessing
+                ? null
+                : () => _startPayment(
+                    amountPaise: amountPaise,
+                    doctorName: doctorName,
+                    patientName: patientName,
+                    displayAmount: formattedAmount,
                   ),
-                ),
-              );
-            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2D4FE3),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
             ),
-            child: Text(
-              'Pay $formattedAmount',
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+            child: _isProcessing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    'Pay $formattedAmount',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -282,8 +350,6 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 }
 
-/* ------------------------------- SUMMARY ------------------------------- */
-
 class _BookingSummary extends StatelessWidget {
   const _BookingSummary({
     this.doctorName,
@@ -291,7 +357,7 @@ class _BookingSummary extends StatelessWidget {
     this.dateLabel,
     this.timeLabel,
     required this.amount,
-    this.currency = '₹',
+    this.currency = 'Rs. ',
   });
 
   final String? doctorName;
@@ -326,13 +392,13 @@ class _BookingSummary extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
-          for (final e in entries)
+          for (final entry in entries)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
                   Text(
-                    e.label,
+                    entry.label,
                     style: const TextStyle(
                       color: Color(0xFF6B7280),
                       fontWeight: FontWeight.w600,
@@ -340,7 +406,7 @@ class _BookingSummary extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    e.value,
+                    entry.value,
                     style: const TextStyle(
                       color: Color(0xFF111827),
                       fontWeight: FontWeight.w700,
@@ -354,22 +420,23 @@ class _BookingSummary extends StatelessWidget {
     );
   }
 
-  bool _has(String? v) => (v ?? '').trim().isNotEmpty;
+  bool _has(String? value) => (value ?? '').trim().isNotEmpty;
 
   String _formatAmount() {
-    final isInt = amount == amount.roundToDouble();
-    final value = isInt ? amount.toStringAsFixed(0) : amount.toStringAsFixed(2);
+    final isWhole = amount == amount.roundToDouble();
+    final value = isWhole
+        ? amount.toStringAsFixed(0)
+        : amount.toStringAsFixed(2);
     return '$currency$value';
   }
 }
 
 class _SummaryEntry {
   const _SummaryEntry(this.label, this.value);
+
   final String label;
   final String value;
 }
-
-/* --------------------------- METHOD TILE + CARD -------------------------- */
 
 class _PaymentRadioTile extends StatelessWidget {
   const _PaymentRadioTile({
@@ -413,11 +480,11 @@ class _PaymentRadioTile extends StatelessWidget {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const Spacer(),
-            Radio<PaymentMethod>(
-              value: value,
-              groupValue: groupValue,
-              onChanged: onChanged,
-              visualDensity: VisualDensity.compact,
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey,
             ),
           ],
         ),
@@ -425,8 +492,6 @@ class _PaymentRadioTile extends StatelessWidget {
     );
   }
 }
-
-/* --------------------------------- CARD --------------------------------- */
 
 class _VisaCard extends StatelessWidget {
   const _VisaCard({
@@ -459,7 +524,7 @@ class _VisaCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -509,15 +574,18 @@ class _VisaCard extends StatelessWidget {
     );
   }
 
-  Widget _kv(String k, String v, bool light) {
+  Widget _kv(String key, String value, bool light) {
     final base = light ? Colors.black87 : Colors.white;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(k, style: TextStyle(color: base.withOpacity(.75), fontSize: 11)),
+        Text(
+          key,
+          style: TextStyle(color: base.withValues(alpha: 0.75), fontSize: 11),
+        ),
         const SizedBox(height: 2),
         Text(
-          v,
+          value,
           style: TextStyle(
             color: base,
             fontWeight: FontWeight.w600,
