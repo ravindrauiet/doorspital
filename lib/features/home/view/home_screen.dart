@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final articleResponse = await _articleService.getArticles();
     final doorstepResponse = await _doorstepContentService.getDoorstepContent();
     final homeResponse = await _homeContentService.getHomeContent();
-    
+
     if (mounted) {
       setState(() {
         if (articleResponse.success && articleResponse.data != null) {
@@ -217,7 +217,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       color: AppColors.textPrimary,
                                     ),
                                   ),
-                                  if (service.shortDescription.trim().isNotEmpty) ...[
+                                  if (service.shortDescription
+                                      .trim()
+                                      .isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       service.shortDescription,
@@ -289,11 +291,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Search doctor, drugs, articles...',
                 onBookService: _handleHomeBookService,
                 onGiveService: _showGiveServiceForm,
-                onSupport: () => context.pushNamed(RouteConstants.helpCenterScreen),
+                onSupport: () =>
+                    context.pushNamed(RouteConstants.helpCenterScreen),
                 onPlay: _handleBannerVideoTap,
-                onSearchTap: () => context.pushNamed(RouteConstants.globalSearchScreen),
+                onSearchTap: () =>
+                    context.pushNamed(RouteConstants.globalSearchScreen),
               ),
-              
+
               const SizedBox(height: 20),
 
               // Content sheet
@@ -306,23 +310,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         spacing: 12,
                         runSpacing: 12,
                         alignment: WrapAlignment.center,
-                        children:
-                            _homeContent!.quickActions
-                                .where((item) => item.isVisible)
-                                .map(
-                                  (action) => QuickAction(
-                                    icon: Icons.circle,
-                                    label: action.label,
-                                    image: action.image,
-                                    onTap: () => _handleRouteKey(action.routeKey),
-                                  ),
-                                )
-                                .toList(),
+                        children: _homeContent!.quickActions
+                            .where((item) => item.isVisible)
+                            .map(
+                              (action) => QuickAction(
+                                icon: Icons.circle,
+                                label: action.label,
+                                image: action.image,
+                                onTap: () => _handleRouteKey(action.routeKey),
+                              ),
+                            )
+                            .toList(),
                       ),
                       const SizedBox(height: 25),
                     ],
                     if ((_doorstepContent?.homeSectionVisible ?? false) &&
-                        (_doorstepContent?.homeServices.isNotEmpty ?? false)) ...[
+                        (_doorstepContent?.homeServices.isNotEmpty ??
+                            false)) ...[
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -350,12 +354,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          mainAxisExtent: 140,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              mainAxisExtent: 140,
+                            ),
                         itemCount: _doorstepContent!.homeServices.length,
                         itemBuilder: (context, index) {
                           final service = _doorstepContent!.homeServices[index];
@@ -375,13 +380,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 25),
                     ],
-                    if (_homeContent?.departmentsSection.isVisible ?? false) ...[
+                    if (_homeContent?.departmentsSection.isVisible ??
+                        false) ...[
                       _buildSectionHeader(
                         _homeContent!.departmentsSection.title,
                         _homeContent!.departmentsSection.ctaText,
-                        () => _handleRouteKey('top-doctors'),
+                        () => context.pushNamed(
+                          RouteConstants.clinicSpecialityScreen,
+                        ),
                       ),
-                      if (_homeContent!.departmentsSection.subtitle.isNotEmpty) ...[
+                      if (_homeContent!
+                          .departmentsSection
+                          .subtitle
+                          .isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -398,15 +409,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          mainAxisExtent: 140,
-                        ),
-                        itemCount: _homeContent!.departmentsSection.items.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 6,
+                              mainAxisSpacing: 6,
+                              mainAxisExtent: 86,
+                            ),
+                        itemCount:
+                            _homeContent!.departmentsSection.items.length,
                         itemBuilder: (context, index) {
-                          final item = _homeContent!.departmentsSection.items[index];
+                          final item =
+                              _homeContent!.departmentsSection.items[index];
                           return _HomeGridCard(
                             title: item.title,
                             image: item.image,
@@ -414,11 +428,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 4),
                     ],
                     if (_homeContent?.mostBookedSection.isVisible ?? false) ...[
-                      _buildSectionHeader(_homeContent!.mostBookedSection.title),
-                      if (_homeContent!.mostBookedSection.subtitle.isNotEmpty) ...[
+                      _buildSectionHeader(
+                        _homeContent!.mostBookedSection.title,
+                      ),
+                      if (_homeContent!
+                          .mostBookedSection
+                          .subtitle
+                          .isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -436,10 +455,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 180,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _homeContent!.mostBookedSection.items.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemCount:
+                              _homeContent!.mostBookedSection.items.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
                           itemBuilder: (context, index) {
-                            final item = _homeContent!.mostBookedSection.items[index];
+                            final item =
+                                _homeContent!.mostBookedSection.items[index];
                             return _MostBookedServiceCard(
                               title: item.title,
                               description: item.description,
@@ -458,177 +480,205 @@ class _HomeScreenState extends State<HomeScreen> {
                         description: _homeContent!.promoBanner.description,
                         image: _homeContent!.promoBanner.image,
                         buttonText: _homeContent!.promoBanner.buttonText,
-                        startColor: _parseHexColor(_homeContent!.promoBanner.startColor),
-                        endColor: _parseHexColor(_homeContent!.promoBanner.endColor),
-                        onTap: () => _handleRouteKey(_homeContent!.promoBanner.routeKey),
+                        startColor: _parseHexColor(
+                          _homeContent!.promoBanner.startColor,
+                        ),
+                        endColor: _parseHexColor(
+                          _homeContent!.promoBanner.endColor,
+                        ),
+                        onTap: () =>
+                            _handleRouteKey(_homeContent!.promoBanner.routeKey),
                       ),
                       const SizedBox(height: 25),
                     ],
-                          // Health Articles Section
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Health article',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  context.pushNamed(
-                                    RouteConstants.articlesListScreen,
-                                  );
-                                },
-                                child: const Text(
-                                  'See all',
-                                  style: TextStyle(
-                                    color: AppColors.teal,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
+                    // Health Articles Section
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Health article',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                          ..._articles.take(2).map((article) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: ArticleCard(
-                                  onTap: () {
-                                    context.pushNamed(
-                                      RouteConstants.articleDetailScreen,
-                                      extra: {
-                                        'thumbnail': article.image,
-                                        'title': article.title,
-                                        'date': article.date,
-                                        'readTime': article.time,
-                                        'content': 'Content fetching not implemented in detail screen yet',
-                                      },
-                                    );
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            context.pushNamed(
+                              RouteConstants.articlesListScreen,
+                            );
+                          },
+                          child: const Text(
+                            'See all',
+                            style: TextStyle(
+                              color: AppColors.teal,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ..._articles
+                        .take(2)
+                        .map(
+                          (article) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: ArticleCard(
+                              onTap: () {
+                                context.pushNamed(
+                                  RouteConstants.articleDetailScreen,
+                                  extra: {
+                                    'thumbnail': article.image,
+                                    'title': article.title,
+                                    'date': article.date,
+                                    'readTime': article.time,
+                                    'content':
+                                        'Content fetching not implemented in detail screen yet',
                                   },
-                                  thumbnail: article.image.isNotEmpty ? article.image : 'assets/delivery.png', // Fallback if empty, though unlikely if required
-                                  title: article.title,
-                                  date: article.date,
-                                  readTime: article.time,
-                                ),
-                              )),
-                          if (_articles.isEmpty && !_loading)
-                            const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Text('No articles found'),
+                                );
+                              },
+                              thumbnail: article.image.isNotEmpty
+                                  ? article.image
+                                  : 'assets/delivery.png', // Fallback if empty, though unlikely if required
+                              title: article.title,
+                              date: article.date,
+                              readTime: article.time,
                             ),
-                          const SizedBox(height: 20),
-                          // Terms & Privacy Footer
+                          ),
+                        ),
+                    if (_articles.isEmpty && !_loading)
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('No articles found'),
+                      ),
+                    const SizedBox(height: 20),
 
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              4,
-                              10,
-                              4,
-                              bottomOverlayClearance,
+                    // Terms & Privacy Footer
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        4,
+                        10,
+                        4,
+                        bottomOverlayClearance,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => context.pushNamed(
+                                RouteConstants.termsAndConditionsScreen,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF2845A8,
+                                      ).withOpacity(0.08),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                  border: Border.all(
+                                    color: const Color(0xFFF0F0F0),
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE5E8FF),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.description_outlined,
+                                        size: 20,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Terms & Conditions',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => context.pushNamed(RouteConstants.termsAndConditionsScreen),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF2845A8).withOpacity(0.08),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                        border: Border.all(color: const Color(0xFFF0F0F0)),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFE5E8FF),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                              Icons.description_outlined,
-                                              size: 20,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            'Terms & Conditions',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.textPrimary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => context.pushNamed(
+                                RouteConstants.privacyPolicyScreen,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF2845A8,
+                                      ).withOpacity(0.08),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
                                     ),
+                                  ],
+                                  border: Border.all(
+                                    color: const Color(0xFFF0F0F0),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => context.pushNamed(RouteConstants.privacyPolicyScreen),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF2845A8).withOpacity(0.08),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                        border: Border.all(color: const Color(0xFFF0F0F0)),
+                                        color: const Color(0xFFE5E8FF),
+                                        shape: BoxShape.circle,
                                       ),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFE5E8FF),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                              Icons.shield_outlined,
-                                              size: 20,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            'Privacy Policy',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.textPrimary,
-                                            ),
-                                          ),
-                                        ],
+                                      child: const Icon(
+                                        Icons.shield_outlined,
+                                        size: 20,
+                                        color: AppColors.primary,
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Privacy Policy',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -712,8 +762,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Color _parseHexColor(String value) {
-    final clean =
-        value.replaceAll('#', '').trim().padLeft(6, '0').toUpperCase();
+    final clean = value
+        .replaceAll('#', '')
+        .trim()
+        .padLeft(6, '0')
+        .toUpperCase();
     final normalized = clean.length == 6 ? 'FF$clean' : clean;
     return Color(int.tryParse(normalized, radix: 16) ?? 0xFF2F49D0);
   }
@@ -828,8 +881,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
@@ -838,8 +890,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                           width: 36,
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFEEF2FF),
-                                            borderRadius:
-                                                BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                           child: const Icon(
                                             Icons.work_outline,
@@ -880,7 +933,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                           },
                                           child: AnimatedContainer(
                                             duration: const Duration(
-                                                milliseconds: 180),
+                                              milliseconds: 180,
+                                            ),
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 14,
                                               vertical: 12,
@@ -900,11 +954,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   ? [
                                                       BoxShadow(
                                                         color: const Color(
-                                                                0xFF2F49D0)
-                                                            .withOpacity(0.14),
+                                                          0xFF2F49D0,
+                                                        ).withOpacity(0.14),
                                                         blurRadius: 12,
-                                                        offset:
-                                                            const Offset(0, 4),
+                                                        offset: const Offset(
+                                                          0,
+                                                          4,
+                                                        ),
                                                       ),
                                                     ]
                                                   : null,
@@ -928,8 +984,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               if (field.hasError) ...[
                                 const SizedBox(height: 8),
                                 Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
                                   child: Text(
                                     field.errorText!,
                                     style: TextStyle(
@@ -976,32 +1033,46 @@ class _HomeScreenState extends State<HomeScreen> {
                                       _isSubmitting = true;
                                     });
 
-                                    final selectedProfession = _selectedProfession == 'Other'
-                                        ? _customProfessionController.text.trim()
+                                    final selectedProfession =
+                                        _selectedProfession == 'Other'
+                                        ? _customProfessionController.text
+                                              .trim()
                                         : _selectedProfession!;
 
-                                    final success = await _giveServiceService.submitRequest(
-                                      _nameController.text.trim(),
-                                      _mobileController.text.trim(),
-                                      selectedProfession,
-                                    );
+                                    final success = await _giveServiceService
+                                        .submitRequest(
+                                          _nameController.text.trim(),
+                                          _mobileController.text.trim(),
+                                          selectedProfession,
+                                        );
 
                                     setStateModal(() {
                                       _isSubmitting = false;
                                     });
 
                                     if (success) {
-                                      if (Navigator.canPop(context)) Navigator.pop(context); // Close the modal
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      if (Navigator.canPop(context))
+                                        Navigator.pop(
+                                          context,
+                                        ); // Close the modal
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         const SnackBar(
-                                          content: Text('Request submitted successfully. We will contact you soon.'),
+                                          content: Text(
+                                            'Request submitted successfully. We will contact you soon.',
+                                          ),
                                           backgroundColor: Colors.green,
                                         ),
                                       );
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         const SnackBar(
-                                          content: Text('Failed to submit request. Please try again later.'),
+                                          content: Text(
+                                            'Failed to submit request. Please try again later.',
+                                          ),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -1018,7 +1089,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                  ),
                                 )
                               : const Text(
                                   'Submit',
@@ -1042,7 +1115,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
 
 // DoorstepServiceCard moved to components folder
 
@@ -1134,28 +1206,24 @@ class _HomeGridCard extends StatelessWidget {
   final String image;
   final VoidCallback? onTap;
 
-  const _HomeGridCard({
-    required this.title,
-    required this.image,
-    this.onTap,
-  });
+  const _HomeGridCard({required this.title, required this.image, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              height: 72,
+              height: 52,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
@@ -1166,19 +1234,24 @@ class _HomeGridCard extends StatelessWidget {
                 child: _RemoteOrAssetImage(path: image, fit: BoxFit.cover),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 2),
             Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  height: 1.2,
-                  color: Colors.black87,
+              child: SizedBox(
+                width: double.infinity,
+                child: Center(
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1235,7 +1308,10 @@ class _HomePromoBannerCard extends StatelessWidget {
                   child: SizedBox(
                     width: 120,
                     height: 130,
-                    child: _RemoteOrAssetImage(path: image, fit: BoxFit.contain),
+                    child: _RemoteOrAssetImage(
+                      path: image,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
@@ -1245,7 +1321,10 @@ class _HomePromoBannerCard extends StatelessWidget {
                 bottom: 0,
                 right: 130,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 20,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1389,5 +1468,3 @@ class _ImageFallback extends StatelessWidget {
     );
   }
 }
-
-

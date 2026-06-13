@@ -224,7 +224,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    "Don't have an account?",
+                    "Don't have an account? ",
                     style: TextStyle(
                       color: AppColors.black,
                       fontWeight: FontWeight.w500,
@@ -235,7 +235,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       context.pushNamed(RouteConstants.signUpScreen);
                     },
                     child: const Text(
-                      'Sign up',
+                      'Sign Up',
                       style: TextStyle(
                         color: AppColors.teal,
                         fontWeight: FontWeight.w700,

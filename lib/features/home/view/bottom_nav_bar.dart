@@ -2,10 +2,10 @@ import 'package:door/features/articles/view/articles_list_screen.dart';
 import 'package:door/features/home/view/home_screen.dart';
 import 'package:door/features/home/view/services_screen.dart';
 import 'package:door/features/profile/view/profile_screen.dart';
-import 'package:door/features/pharmacy/view/pharmacy_home_screen.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:door/features/home/provider/bottom_navbar_provider.dart';
 import 'package:door/features/home/provider/video_player_provider.dart';
@@ -17,63 +17,97 @@ class BottomNavBar extends StatelessWidget {
 
   static const int videoTabIndex = 0;
 
+  Future<void> _confirmExit(BuildContext context) async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Exit app'),
+          content: const Text('Do you want to close the app?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldExit == true) {
+      SystemNavigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<BottomNavbarProvider>(
       builder: (context, provider, child) {
-          final List<Widget> pages = [
-            HomeScreen(),
-            ServicesScreen(), // New Services Tab
-            ArticlesListScreen(), // Health Tip Tab
-            ProfileScreen(),
-          ];
+        final List<Widget> pages = [
+          HomeScreen(),
+          ServicesScreen(),
+          ArticlesListScreen(),
+          ProfileScreen(),
+        ];
 
-        return Scaffold(
-          body: pages[provider.currentIndex],
-          floatingActionButton: const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: _WhatsAppFAB(),
-          ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          bottomNavigationBar: BottomNavigationBar(
-            items: const <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.home),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.grid_view), 
-                label: 'Services',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.article_outlined),
-                label: 'Health Tip',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.account_circle_outlined),
-                label: 'Profile',
-              ),
-            ],
-            currentIndex: provider.currentIndex,
-            selectedItemColor: AppColors.primary,
-            unselectedItemColor: AppColors.darkGrey,
-            type: BottomNavigationBarType.fixed,
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              _confirmExit(context);
+            }
+          },
+          child: Scaffold(
+            body: pages[provider.currentIndex],
+            floatingActionButton: const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: _WhatsAppFAB(),
+            ),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.endFloat,
+            bottomNavigationBar: BottomNavigationBar(
+              items: const <BottomNavigationBarItem>[
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.home),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.grid_view),
+                  label: 'Services',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.article_outlined),
+                  label: 'Health Tip',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.account_circle_outlined),
+                  label: 'Profile',
+                ),
+              ],
+              currentIndex: provider.currentIndex,
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: AppColors.darkGrey,
+              type: BottomNavigationBarType.fixed,
+              onTap: (index) {
+                final videoProvider = context.read<VideoPlayerProvider>();
 
-            onTap: (index) {
-              final videoProvider = context.read<VideoPlayerProvider>();
+                if (provider.currentIndex == videoTabIndex &&
+                    index != videoTabIndex) {
+                  videoProvider.pause();
+                }
 
-              if (provider.currentIndex == videoTabIndex &&
-                  index != videoTabIndex) {
-                videoProvider.pause();
-              }
+                if (provider.currentIndex != videoTabIndex &&
+                    index == videoTabIndex) {
+                  videoProvider.play();
+                }
 
-              if (provider.currentIndex != videoTabIndex &&
-                  index == videoTabIndex) {
-                videoProvider.play();
-              }
-
-              provider.updateIndex(index);
-            },
+                provider.updateIndex(index);
+              },
+            ),
           ),
         );
       },
@@ -146,7 +180,7 @@ class _WhatsAppFABState extends State<_WhatsAppFAB>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: const Color(0xFF25D366)
-                      .withOpacity(1.0 - (_pulse.value - 1.0)),
+                      .withValues(alpha: 1.0 - (_pulse.value - 1.0)),
                 ),
               ),
               // Main button
@@ -158,7 +192,7 @@ class _WhatsAppFABState extends State<_WhatsAppFAB>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF25D366).withOpacity(0.5),
+                      color: const Color(0xFF25D366).withValues(alpha: 0.5),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),

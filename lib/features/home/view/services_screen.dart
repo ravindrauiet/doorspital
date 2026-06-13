@@ -3,11 +3,13 @@ import 'package:door/features/doorstep_service/services/doorstep_content_service
 import 'package:door/features/home/components/doorstep_service_card.dart';
 import 'package:door/features/home/components/home_search_feild.dart';
 import 'package:door/features/home/models/home_content_model.dart';
+import 'package:door/features/home/provider/bottom_navbar_provider.dart';
 import 'package:door/features/home/services/home_content_service.dart';
 import 'package:door/utils/theme/colors.dart';
 import 'package:door/routes/route_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key});
@@ -71,7 +73,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => context.goNamed(RouteConstants.homeScreen),
+          onPressed: () => context.read<BottomNavbarProvider>().updateIndex(0),
         ),
         actions: [
           IconButton(
@@ -98,25 +100,25 @@ class _ServicesScreenState extends State<ServicesScreen> {
                             pageTitle,
                             style: const TextStyle(
                               color: Colors.black,
-                              fontSize: 26,
+                              fontSize: 24,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             pageSubtitle,
                             style: const TextStyle(
                               color: AppColors.textSecondary,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 10),
                           SearchField(
                             onTap: () {
                               context.pushNamed(RouteConstants.globalSearchScreen);
                             },
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                         ],
                       ),
                     ),
@@ -258,19 +260,19 @@ class _DepartmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
