@@ -54,13 +54,13 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
-	<key>UIStatusBarHidden</key>
-	<false/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to automatically fill your shipping address</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>We need your location to automatically fill your shipping address</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We need your location to automatically fill your shipping address</string>
-</dict>
+		<key>UIStatusBarHidden</key>
+		<false/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>We need your location to automatically fill your shipping address</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>We need your location to automatically fill your shipping address</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>We need your location to automatically fill your shipping address</string>
+	</dict>
 </plist>

@@ -72,12 +72,7 @@ class _DoorstepServiceDetailsScreenState
         nurses = nurseResponse.data ?? [];
       } else {
         final doctorResponse = await _doctorService.getTopDoctors(
-          service:
-              _isPhysiotherapyService(detail)
-                  ? 'Physiotherapy'
-                  : (detail.doctorFilterValue.isNotEmpty
-                      ? detail.doctorFilterValue
-                      : detail.title),
+          service: _getDoctorServiceFilter(detail),
           limit: 20,
         );
         doctors = doctorResponse.data ?? [];
@@ -164,9 +159,13 @@ class _DoorstepServiceDetailsScreenState
     setState(() {
       _selectedSubCategoryTitle = null;
     });
-    final filterValue =
-        detail.doctorFilterValue.isNotEmpty ? detail.doctorFilterValue : detail.title;
-    await _loadDoctorsForFilter(filterValue);
+    await _loadDoctorsForFilter(_getDoctorServiceFilter(detail));
+  }
+
+  String _getDoctorServiceFilter(DoorstepServiceContent detail) {
+    return detail.doctorFilterValue.isNotEmpty
+        ? detail.doctorFilterValue
+        : detail.title;
   }
 
   bool _isNurseService(DoorstepServiceContent detail) {
@@ -612,6 +611,24 @@ class _DoorstepServiceDetailsScreenState
                                 color: AppColors.textPrimary,
                               ),
                             ),
+                            if (_showLegacyServicePrice(detail.servicePrice)) ...[
+                              const SizedBox(height: 0),
+                              Text(
+                                '₹ ${_formatMoney(detail.servicePrice)}',
+                                style: const TextStyle(
+                                  fontSize: 0,
+                                  height: 0.01,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                            if (detail.servicePrice > 0) ...[
+                              const SizedBox(height: 4),
+                              _SimpleServicePriceBanner(
+                                amount: detail.servicePrice,
+                              ),
+                            ],
                             if (detail.shortDescription.isNotEmpty) ...[
                               const SizedBox(height: 10),
                               Text(
@@ -1006,6 +1023,7 @@ class _DoorstepServiceDetailsScreenState
                                 initial: initial,
                                 specialization: specialist.specialization,
                                 experienceYears: specialist.experienceYears ?? 0,
+                                consultationFee: specialist.consultationFee,
                                 rating: detail.rating > 0 ? detail.rating : 4.5,
                                  width: double.infinity,
                                  onBookAppointment: () =>
@@ -1318,6 +1336,8 @@ class _EnhancedDoctorContactCard extends StatelessWidget {
     final location = doctor.city?.trim().isNotEmpty == true
         ? doctor.city!.trim()
         : 'Location not set';
+    final hasConsultationFee =
+        doctor.consultationFee != null && doctor.consultationFee! > 0;
 
     return Container(
       width: double.infinity,
@@ -1409,6 +1429,25 @@ class _EnhancedDoctorContactCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (_showLegacyDoctorFeeChip(doctor.consultationFee))
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7DD),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '₹ ${_formatMoney(doctor.consultationFee!)} fee',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF9A6700),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1421,6 +1460,13 @@ class _EnhancedDoctorContactCard extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
+                    if (hasConsultationFee) ...[
+                      const SizedBox(height: 10),
+                      _SimpleInlinePricePanel(
+                        label: 'Consultation fee',
+                        amount: doctor.consultationFee!,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1937,6 +1983,7 @@ class _SpecialistCard extends StatelessWidget {
   final String initial;
   final String specialization;
   final int experienceYears;
+  final double? consultationFee;
   final double rating;
   final VoidCallback onChoose;
   final VoidCallback onBookAppointment;
@@ -1948,6 +1995,7 @@ class _SpecialistCard extends StatelessWidget {
     required this.initial,
     required this.specialization,
     required this.experienceYears,
+    this.consultationFee,
     required this.rating,
     required this.onChoose,
     required this.onBookAppointment,
@@ -1957,6 +2005,9 @@ class _SpecialistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasConsultationFee =
+        consultationFee != null && consultationFee! > 0;
+
     return Container(
       width: width,
       padding: const EdgeInsets.all(10),
@@ -2023,6 +2074,12 @@ class _SpecialistCard extends StatelessWidget {
             runSpacing: 6,
             children: [
               _Tag(text: specialization),
+              if (_showLegacySpecialistFeeChip(consultationFee))
+                _Tag(
+                  text: '₹ ${_formatMoney(consultationFee!)} fee',
+                  backgroundColor: const Color(0xFFEFF8F3),
+                  textColor: const Color(0xFF18794E),
+                ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
@@ -2051,6 +2108,13 @@ class _SpecialistCard extends StatelessWidget {
               ),
             ],
           ),
+          if (hasConsultationFee) ...[
+            const SizedBox(height: 10),
+            _SimpleInlinePricePanel(
+              label: 'Doctor fee',
+              amount: consultationFee!,
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [
@@ -2178,25 +2242,315 @@ class _ServiceImage extends StatelessWidget {
 
 class _Tag extends StatelessWidget {
   final String text;
+  final Color backgroundColor;
+  final Color textColor;
 
-  const _Tag({required this.text});
+  const _Tag({
+    required this.text,
+    this.backgroundColor = AppColors.softPurple,
+    this.textColor = AppColors.primary,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.softPurple,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 9,
           fontWeight: FontWeight.bold,
-          color: AppColors.primary,
+          color: textColor,
         ),
       ),
     );
   }
+}
+
+class PremiumServicePriceBanner extends StatelessWidget {
+  final double amount;
+  final String caption;
+
+  const PremiumServicePriceBanner({
+    super.key,
+    required this.amount,
+    required this.caption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1C3FA8),
+            Color(0xFF2F49D0),
+            Color(0xFF1697AA),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x2A2F49D0),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0x24FFFFFF),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0x33FFFFFF)),
+            ),
+            child: const Icon(
+              Icons.local_offer_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'STARTING FROM',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: Color(0xE6FFFFFF),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '₹ ${_formatMoney(amount)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0x24FFFFFF),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0x33FFFFFF)),
+                      ),
+                      child: const Text(
+                        'base price',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  caption,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    height: 1.35,
+                    color: Color(0xD9FFFFFF),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PremiumInlinePricePanel extends StatelessWidget {
+  final String label;
+  final double amount;
+  final String caption;
+
+  const PremiumInlinePricePanel({
+    super.key,
+    required this.label,
+    required this.amount,
+    required this.caption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFF8E1), Color(0xFFFFF1B8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF3D275)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE3A3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.currency_rupee_rounded,
+              color: Color(0xFF8A5A00),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  caption,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '₹ ${_formatMoney(amount)}',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF8A5A00),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimpleServicePriceBanner extends StatelessWidget {
+  final double amount;
+
+  const _SimpleServicePriceBanner({
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _formatCurrencyAmount(amount),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 30,
+        fontWeight: FontWeight.w800,
+        color: AppColors.primary,
+        height: 1,
+      ),
+    );
+  }
+}
+
+class _SimpleInlinePricePanel extends StatelessWidget {
+  final String label;
+  final double amount;
+
+  const _SimpleInlinePricePanel({
+    required this.label,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            _formatCurrencyAmount(amount),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+bool _showLegacyServicePrice(double amount) {
+  return false;
+}
+
+bool _showLegacyDoctorFeeChip(double? amount) {
+  return false;
+}
+
+bool _showLegacySpecialistFeeChip(double? amount) {
+  return false;
+}
+
+String _formatCurrencyAmount(num value) {
+  return '${String.fromCharCode(0x20B9)} ${_formatMoney(value)}';
+}
+
+String _formatMoney(num value) {
+  if (value % 1 == 0) {
+    return value.toStringAsFixed(0);
+  }
+  return value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
 }

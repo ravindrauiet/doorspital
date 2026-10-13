@@ -54,6 +54,7 @@ class DoorstepServiceContent {
   final String bannerImage;
   final double rating;
   final int reviewsCount;
+  final double servicePrice;
   final String whatsIncludedTitle;
   final List<String> whatsIncluded;
   final String fullDetailsTitle;
@@ -79,6 +80,7 @@ class DoorstepServiceContent {
     required this.bannerImage,
     required this.rating,
     required this.reviewsCount,
+    required this.servicePrice,
     required this.whatsIncludedTitle,
     required this.whatsIncluded,
     required this.fullDetailsTitle,
@@ -106,6 +108,7 @@ class DoorstepServiceContent {
       bannerImage: json['bannerImage'] ?? '',
       rating: (json['rating'] as num?)?.toDouble() ?? 0,
       reviewsCount: (json['reviewsCount'] as num?)?.toInt() ?? 0,
+      servicePrice: (json['servicePrice'] as num?)?.toDouble() ?? 0,
       whatsIncludedTitle: json['whatsIncludedTitle'] ?? "What's Included",
       whatsIncluded:
           (json['whatsIncluded'] as List<dynamic>? ?? [])

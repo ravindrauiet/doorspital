@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:door/utils/theme/colors.dart';
+import 'package:door/utils/images/images.dart';
 
 /// About Us page displaying company information
 class AboutUsPage extends StatelessWidget {
@@ -45,7 +46,7 @@ class AboutUsPage extends StatelessWidget {
             
             // Logo
             Image.asset(
-              'assets/logo.png',
+              Images.logo,
               width: 150,
               height: 150,
               fit: BoxFit.contain,

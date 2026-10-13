@@ -16,7 +16,6 @@ import 'package:door/services/give_service_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -281,6 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundImage:
                     _homeContent?.banner.backgroundImage ??
                     'assets/images/Elderly Care copy.png',
+                videoUrl: _homeContent?.banner.videoUrl ?? '',
                 bookServiceLabel:
                     _homeContent?.banner.bookServiceLabel ?? 'Book a Service',
                 giveServiceLabel:
@@ -293,7 +293,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 onGiveService: _showGiveServiceForm,
                 onSupport: () =>
                     context.pushNamed(RouteConstants.helpCenterScreen),
-                onPlay: _handleBannerVideoTap,
                 onSearchTap: () =>
                     context.pushNamed(RouteConstants.globalSearchScreen),
               ),
@@ -712,15 +711,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
       ],
     );
-  }
-
-  Future<void> _handleBannerVideoTap() async {
-    final videoUrl = _homeContent?.banner.videoUrl.trim() ?? '';
-    if (videoUrl.isEmpty) return;
-
-    final uri = Uri.tryParse(videoUrl);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   void _handleRouteKey(String routeKey) {
